@@ -30,17 +30,14 @@
 #include "debug.h"
 #include "timer.h"
 
-#define FATAL_NC_ERR
-#define NC_ERR
-
-//#define FATAL_NC_ERR {if(err!=NC_NOERR) {printf("Error in file=%s at line=%d: %s Aborting ...\n", __FILE__, __LINE__, nc_strerror(err)); exit(-1);}}
-//#define NC_ERR \
-//	{ \
-//		if(err!=NC_NOERR) { \
-//			printf("Error in file=%s at line=%d: %s\n", __FILE__, __LINE__, nc_strerror(err)); \
-//			exit(-1); \
-//		} \
-//	}
+#define FATAL_NC_ERR {if(err!=NC_NOERR) {printf("Error in file=%s at line=%d: %s Aborting ...\n", __FILE__, __LINE__, nc_strerror(err)); exit(-1);}}
+#define NC_ERR \
+	{ \
+		if(err!=NC_NOERR) { \
+			printf("Error in file=%s at line=%d: %s\n", __FILE__, __LINE__, nc_strerror(err)); \
+			exit(-1); \
+		} \
+	}
 
 
 /**
