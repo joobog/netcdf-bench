@@ -10,7 +10,7 @@
  *       Revision:  none
  *       Compiler:  gcc
  *
- *         Author:  Eugen Betke (betke@dkrz.de), Julian Kunkel (juliankunkel@googleamail.com)
+ *         Author:  Eugen Betke (betke@dkrz.de), Julian Kunkel (juliankunkel@googlemail.com)
  *   Organization:  DKRZ (Deutsches Klimarechenzentrum)
  *
  * =====================================================================================
