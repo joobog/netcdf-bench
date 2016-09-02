@@ -193,7 +193,7 @@ int main(int argc, char ** argv){
 	}
 
 	if (NULL == args.testfn) {
-		const char* testfn = "./test/testfn.nc";
+		const char* testfn = "./testfn.nc";
 		args.testfn = (char*)malloc(sizeof(*args.testfn) * strlen(testfn) + 1);
 		strcpy(args.testfn, testfn);
 	}
