@@ -283,8 +283,6 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 	MPI_Barrier(MPI_COMM_WORLD);
 	start_timer(&stop_open);
 	/* END: OPEN BENCHMARK */
-	sleep(10);
-
 
 
 	/* IO BENCHMARK */
