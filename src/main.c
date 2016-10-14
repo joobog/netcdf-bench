@@ -107,6 +107,55 @@ struct args {
 	int verify;
 };
 
+void print_header(benchmark_t* bm){
+		char buffer[200];
+		const int dist2 = 40;
+		const int dist3 = 20;
+		const int dist4 = 20;
+		const size_t dsize = bm->dgeom[0] * bm->dgeom[1] * bm->dgeom[2] * bm->dgeom[3] * sizeof(bm->block[0]);
+		const size_t bsize = bm->bgeom[0] * bm->bgeom[1] * bm->bgeom[2] * bm->bgeom[3] * sizeof(bm->block[0]);
+		size_t csize = 0;
+		if (NC_CHUNKED == bm->storage) {
+			csize = bm->cgeom[0] * bm->cgeom[1] * bm->cgeom[2] * bm->cgeom[3] * sizeof(bm->block[0]);
+		}
+		snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->dgeom[0], bm->dgeom[1], bm->dgeom[2], bm->dgeom[3], sizeof(bm->block[0]));
+		printf("%-*s %*s %-*s\n" , dist2 , "Data geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
+		snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->bgeom[0], bm->bgeom[1], bm->bgeom[2], bm->bgeom[3], sizeof(bm->block[0]));
+		printf("%-*s %*s %-*s\n" , dist2 , "Block geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
+		if (NC_CHUNKED == bm->storage) {
+			snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->cgeom[0], bm->cgeom[1], bm->cgeom[2], bm->cgeom[3], sizeof(bm->block[0]));
+			printf("%-*s %*s %-*s\n" , dist2 , "Chunk geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
+		}
+		printf("%-*s %*.zu %-*s\n" , dist2 , "Datasize"                              , dist3 , dsize              , dist4 , "bytes");
+		printf("%-*s %*.zu %-*s\n" , dist2 , "Blocksize"                             , dist3 , bsize              , dist4 , "bytes");
+		if (NC_CHUNKED == bm->storage) {
+			printf("%-*s %*.zu %-*s\n" , dist2 , "Chunksize"                             , dist3 , csize              , dist4 , "bytes");
+		}
+
+		switch (bm->par_access) {
+			case NC_COLLECTIVE:
+					printf("%-*s %*s\n", dist2 , "I/O Access", dist3 , "collective");
+				break;
+			case NC_INDEPENDENT:
+					printf("%-*s %*s\n", dist2 , "I/O Access", dist3 , "independent");
+				break;
+		}
+		switch (bm->storage) {
+			case NC_CHUNKED:
+					printf("%-*s %*s\n", dist2 , "Storage", dist3 , "chunked");
+				break;
+			case NC_CONTIGUOUS:
+					printf("%-*s %*s\n", dist2 , "Storage", dist3 , "contiguous");
+				break;
+		}
+
+		if (bm->is_unlimited) {
+				printf("%-*s %*s\n", dist2 , "File length", dist3 , "unlimited");
+		}
+		else {
+				printf("%-*s %*s\n", dist2 , "File length", dist3 , "fixed");
+		}
+}
 
 int main(int argc, char ** argv){
   MPI_Init(&argc, &argv);
@@ -146,8 +195,17 @@ int main(int argc, char ** argv){
 		{0 , 	 "verify"  				, "Verify that the data read is correct (requires -r)", OPTION_FLAG ,						   'd' , & args.verify}                ,
 	  LAST_OPTION
 	  };
-	parseOptions(argc, argv, options);
-	printf("Benchtool (datatype: %s) \n", xstr(DATATYPE));
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, & rank);
+	// check the correctness of the options only for rank 0
+	if (rank == 0){
+		printf("Benchtool (datatype: %s) \n", xstr(DATATYPE));
+		parseOptions(argc, argv, options);
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (rank != 0){
+		parseOptions(argc, argv, options);
+	}
 
 	parse_dims(dg, &args.dgeom, &args.dgeom_size);
 	parse_dims(bg, &args.bgeom, &args.bgeom_size);
@@ -280,31 +338,38 @@ int main(int argc, char ** argv){
 
 	benchmark_t wbm;
 	benchmark_init(&wbm);
+
+	int header_printed = 0;
+
 	benchmark_t rbm;
 	benchmark_init(&rbm);
 	if (args.write_test || args.verify) {
 		benchmark_setup(&wbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_WRITE, args.par_access, args.is_unlimited);
+		if(rank == 0){
+			print_header(& wbm);
+			header_printed = 1;
+		}
 	}
 	if (args.write_test) {
 		benchmark_run(&wbm, NULL);
 		report_t report;
 		report_init(&report);
 		report_setup(&report, &wbm);
-//		report_print(&report, args.report_type);
-		report_print(&report, REPORT_HUMAN);
-		report_print(&report, REPORT_PARSER);
+		report_print(&report, args.report_type);
 		report_destroy(&report);
 	}
 	if (args.read_test) {
 		int ret;
 		benchmark_setup(&rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited);
+		if(rank == 0 && ! header_printed){
+			print_header(& wbm);
+			header_printed = 1;
+		}
 		ret = benchmark_run(&rbm, args.verify ? wbm.block : NULL);
 		report_t report;
 		report_init(&report);
 		report_setup(&report, &rbm);
-//		report_print(&report, args.report_type);
-		report_print(&report, REPORT_HUMAN);
-		report_print(&report, REPORT_PARSER);
+		report_print(&report, args.report_type);
 		report_destroy(&report);
 		if (args.verify){
 			if (ret) {

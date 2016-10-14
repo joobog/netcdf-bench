@@ -3,7 +3,7 @@
  *
  *       Filename:  report.c
  *
- *    Description:  
+ *    Description:
  *
  *        Version:  1.0
  *        Created:  08/18/2016 10:06:57 AM
@@ -79,16 +79,16 @@
 
 
 /**
- * @brief 
+ * @brief
  *
- * @param 
+ * @param
  */
 void report_init(report_t* report){
 	report->bm = NULL;
 }
 
 /**
- * @brief 
+ * @brief
  *
  * @param report
  * @param bm
@@ -98,7 +98,7 @@ void report_setup(report_t* report, benchmark_t* bm) {
 }
 
 /**
- * @brief 
+ * @brief
  *
  * @param report
  */
@@ -109,8 +109,8 @@ void report_destroy(report_t* report) {
 
 
 static void table_write_entry(
-		table_t* table, 
-		const size_t nrows, const size_t ncols, const size_t pos, 
+		table_t* table,
+		const size_t nrows, const size_t ncols, const size_t pos,
 		const char* name, const char* type, const char* quantity, const char* unit, const char* value) {
 	assert(pos < ncols);
 	table_t tab = *table;
@@ -169,7 +169,7 @@ static void append_string(char** buf, size_t* buf_size, const char* vb) {
 
 
 /**
- * @brief 
+ * @brief
  *
  * @param report
  * @param type
@@ -180,13 +180,8 @@ void report_print(const report_t* report, const report_type_t type) {
 	MPI_Comm_size(MPI_COMM_WORLD, &nranks);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	benchmark_t* bm = report->bm;
-
 	const size_t dsize = bm->dgeom[0] * bm->dgeom[1] * bm->dgeom[2] * bm->dgeom[3] * sizeof(bm->block[0]);
 	const size_t bsize = bm->bgeom[0] * bm->bgeom[1] * bm->bgeom[2] * bm->bgeom[3] * sizeof(bm->block[0]);
-	size_t csize = 0;
-	if (NC_CHUNKED == bm->storage) {
-		csize = bm->cgeom[0] * bm->cgeom[1] * bm->cgeom[2] * bm->cgeom[3] * sizeof(bm->block[0]);
-	}
 
 	char io_mode_str[10];
 	switch (bm->io_mode) {
@@ -197,7 +192,6 @@ void report_print(const report_t* report, const report_type_t type) {
 			strcpy(io_mode_str, "read");
 			break;
 	}
-
 
 	char id[200];
 	sprintf(id, "%s:%u:%s", report->bm->processor, report->bm->rank, io_mode_str);
@@ -215,62 +209,17 @@ void report_print(const report_t* report, const report_type_t type) {
 				printf("%-*s %-*s %*.10f %-*s\n" , dist1 , id , dist2 , "Open time"                             , dist3 , bm->duration.open  , dist4 , "secs");
 				printf("%-*s %-*s %*.10f %-*s\n" , dist1 , id , dist2 , "I/O time"                              , dist3 , bm->duration.io    , dist4 , "secs");
 				printf("%-*s %-*s %*.10f %-*s\n" , dist1 , id , dist2 , "Close time"                            , dist3 , bm->duration.close , dist4 , "secs");
-				char buffer[200];
-				snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->dgeom[0], bm->dgeom[1], bm->dgeom[2], bm->dgeom[3], sizeof(bm->block[0]));
-				printf("%-*s %-*s %*s %-*s\n" , dist1 , id , dist2 , "Data geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
-				snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->bgeom[0], bm->bgeom[1], bm->bgeom[2], bm->bgeom[3], sizeof(bm->block[0]));
-				printf("%-*s %-*s %*s %-*s\n" , dist1 , id , dist2 , "Block geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
-				if (NC_CHUNKED == bm->storage) {
-					snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->cgeom[0], bm->cgeom[1], bm->cgeom[2], bm->cgeom[3], sizeof(bm->block[0]));
-					printf("%-*s %-*s %*s %-*s\n" , dist1 , id , dist2 , "Chunk geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
-				}
-				printf("%-*s %-*s %*.zu %-*s\n" , dist1 , id , dist2 , "Datasize"                              , dist3 , dsize              , dist4 , "bytes");
-				printf("%-*s %-*s %*.zu %-*s\n" , dist1 , id , dist2 , "Blocksize"                             , dist3 , bsize              , dist4 , "bytes");
-				if (NC_CHUNKED == bm->storage) {
-					printf("%-*s %-*s %*.zu %-*s\n" , dist1 , id , dist2 , "Chunksize"                             , dist3 , csize              , dist4 , "bytes");
-				}
 				printf("%-*s %-*s %*.4f %-*s\n"  , dist1 , id , dist2 , "I/O Performance (w/o open/close)" , dist3 , io_pure_perf       , dist4 , "MiB/s");
 				printf("%-*s %-*s %*.4f %-*s\n"  , dist1 , id , dist2 , "I/O Performance"                       , dist3 , io_perf            , dist4 , "MiB/s");
-//	int par_access;
-//	int storage;
-//	bool is_unlimited;
-				switch (bm->par_access) {
-					case NC_COLLECTIVE:
-							printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "I/O Access", dist3 , "collective");
-						break;
-					case NC_INDEPENDENT:
-							printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "I/O Access", dist3 , "independent");
-						break;
-				}
-				switch (bm->storage) {
-					case NC_CHUNKED:
-							printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "Storage", dist3 , "chunked");
-						break;
-					case NC_CONTIGUOUS:
-							printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "Storage", dist3 , "contiguous");
-						break;
-				}
-
-				if (bm->is_unlimited) {
-						printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "File length", dist3 , "unlimited");
-				}
-				else {
-						printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "File length", dist3 , "fixed");
-				}
-
-				printf("%-*s %-*s\n"             , dist1 , id , dist2 , "Block I/O times");
-				const size_t max_len = 4;
-				const int dist5 = 20;
-				for (size_t i = 0; i < bm->mssize;) {
-					printf("%0*zu: ", 6, i);
-					for (size_t len = 0; (i < bm->mssize) & (len < max_len); ++i, ++len) {
-						printf("%*.10f secs", dist5, time_to_double(bm->ms[i].stop) - time_to_double(bm->ms[i].start));
-					}
-					printf("\n");
+				printf("%-*s %-*s"  , dist1 , id , dist2 , "I/O Times per block");
+				for (size_t i = 0; i < bm->mssize; ++i) {
+					char buffer[100];
+					snprintf(buffer, 100, "%.10f", time_to_double(time_diff(bm->ms[i].stop, bm->ms[i].start))); // This was wrong for large times, always do: to_double(stop - start) !
+					printf("%s ", buffer);
 				}
 				printf("\n");
-			}
 			break;
+		}
 		case REPORT_PARSER:
 			{
 				// Memory allocation and initialization
@@ -287,8 +236,6 @@ void report_print(const report_t* report, const report_type_t type) {
 				size_t pos = 0;
 				table_write_entry(&table, NROWS, NCOLS, pos++, "name", "type", "quantity", "unit", "value");
 				table_write_entry(&table, NROWS, NCOLS, pos++, "processor", "text", "label", "", bm->processor);
-				snprintf(buffer, 100, "%d", bm->nranks);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "nranks", "int", "", "", buffer);
 				snprintf(buffer, 100, "%d", bm->rank);
 				table_write_entry(&table, NROWS, NCOLS, pos++, "rank", "int", "", "", buffer);
 				snprintf(buffer, 100, "%.10f", bm->duration.io);
@@ -297,17 +244,11 @@ void report_print(const report_t* report, const report_type_t type) {
 				table_write_entry(&table, NROWS, NCOLS, pos++, "time_open", "float", "time", "secs", buffer);
 				snprintf(buffer, 100, "%.10f", bm->duration.close);
 				table_write_entry(&table, NROWS, NCOLS, pos++, "time_close", "float", "time", "secs", buffer);
-				snprintf(buffer, 100, "%.zu", dsize);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "data_size", "int", "size", "bytes", buffer);
-				snprintf(buffer, 100, "%.zu", bsize);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "block_size", "int", "size", "bytes", buffer);
-				snprintf(buffer, 100, "%.zu", csize);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "chunk_size", "int", "size", "bytes", buffer);
 				size_t msbufsize = 20;
 				char* msbuf = malloc(sizeof(*msbuf) * msbufsize);
 				msbuf[0] = '\0';
 				for (size_t i = 0; i < bm->mssize; ++i) {
-					snprintf(buffer, 100, "%.10f;", time_to_double(bm->ms[i].stop) - time_to_double(bm->ms[i].start));
+					snprintf(buffer, 100, "%.10f", time_to_double(time_diff(bm->ms[i].stop, bm->ms[i].start))); // This was wrong for lare times, always do: to_double(stop - start) !
 					append_string(&msbuf, &msbufsize, buffer);
 				}
 				msbuf[strlen(msbuf) - 1] = '\0'; // Delete the last separator
@@ -332,12 +273,12 @@ void report_print(const report_t* report, const report_type_t type) {
 					snprintf(buffer, 100, "\n");
 					append_string(&outbuf, &outbuf_size, buffer);
 				}
-			
+
 				// Send/Receive Report
 				size_t* report_size = (size_t*) malloc(nranks * sizeof(*report_size));
 				report_size[0] = outbuf_size;
 
-				// NEW 
+				// NEW
 //				benchmark_t** benchmarks = NULL;
 //				if (0 == rank){
 //					benchmarks= (benchmark_t**)malloc(sizeof(benchmark_t*) * nranks);
@@ -358,7 +299,7 @@ void report_print(const report_t* report, const report_type_t type) {
 //				}
 				// END: NEW
 
-				
+
 				if (0 == rank){
 					for(int i = 1; i < nranks; ++i){
 						MPI_Recv(&report_size[i], 1, MPI_UNSIGNED_LONG_LONG, i, 4710, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
