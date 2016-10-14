@@ -103,13 +103,14 @@ void benchmark_setup(
 		const char* testfn,
 		const io_mode_t io_mode,
 		const int par_access,
-		const bool is_unlimited
+		const bool is_unlimited,
+		int use_fill_value
 		)
 {
 	assert(dgeom[DX] % procs.nn == 0);
 	assert(dgeom[DY] % procs.ppn == 0);
 
-
+	bm->use_fill_value = use_fill_value;
 	bm->par_access = par_access;
 	switch (bm->par_access) {
 		case NC_COLLECTIVE:
@@ -236,6 +237,16 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 			cmode = NC_CLOBBER | NC_MPIIO | NC_NETCDF4;
 			err = nc_create_par(bm->testfn, cmode, MPI_COMM_WORLD, MPI_INFO_NULL, &ncid); FATAL_NC_ERR;
 
+			if (! bm->use_fill_value){
+				int old_fill_mode;
+				err = nc_set_fill(ncid, NC_NOFILL, &old_fill_mode);
+				FATAL_NC_ERR;
+				err = nc_set_fill(ncid, NC_NOFILL, &old_fill_mode);
+				if(old_fill_mode != NC_NOFILL){
+					FATAL_ERR("ERROR setting no-fill mode\n");
+				}
+			}
+
 			if (bm->is_unlimited) {
 				err = nc_def_dim(ncid, "time", NC_UNLIMITED, &(dimids)[DT]); NC_ERR;
 			}
@@ -251,6 +262,10 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 
 			if (NC_CHUNKED == bm->storage) {
 				err = nc_def_var_chunking(ncid, varid, NC_CHUNKED, bm->cgeom); FATAL_NC_ERR;
+			}
+
+			if (! bm->use_fill_value){
+				err = nc_def_var_fill(ncid, varid, 1, & err); FATAL_NC_ERR;
 			}
 			err = nc_enddef(ncid); NC_ERR;
 			break;
@@ -268,6 +283,7 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 	MPI_Barrier(MPI_COMM_WORLD);
 	start_timer(&stop_open);
 	/* END: OPEN BENCHMARK */
+	sleep(10);
 
 
 

@@ -52,6 +52,7 @@ typedef struct benchmark_t {
 	int par_access;
 	int storage;
 	bool is_unlimited;
+	bool use_fill_value;
 } benchmark_t;
 
 void benchmark_init(benchmark_t* benchmark);
@@ -65,7 +66,8 @@ void benchmark_setup(
 		const char* testfn,
 		const io_mode_t io_mode,
 		const int par_access,
-		const bool is_unlimited
+		const bool is_unlimited,
+		int use_fill_value
 		);
 int benchmark_run(benchmark_t* benchmark, DATATYPE* compare_block);
 void benchmark_destroy(benchmark_t* benchmark);

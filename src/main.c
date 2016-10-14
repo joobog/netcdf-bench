@@ -105,6 +105,7 @@ struct args {
   int par_access;
   int is_unlimited;
 	int verify;
+	int fill_value;
 };
 
 void print_header(benchmark_t* bm){
@@ -177,6 +178,7 @@ int main(int argc, char ** argv){
   args.par_access = NC_INDEPENDENT;
   args.is_unlimited = 0;
 	args.verify = 0;
+	args.fill_value = 0;
 
 	char * dg = NULL, * bg  = NULL, *cg = NULL, *iot = "ind", *xf = "human";
 
@@ -192,6 +194,7 @@ int main(int argc, char ** argv){
 		{'u' , "unlimited"      , "Enable unlimited time dimension"         , OPTION_FLAG              , 'd' , & args.is_unlimited} ,
 		{'f' , "testfile"       , "Filename of the testfile"                , OPTION_OPTIONAL_ARGUMENT , 's' , & args.testfn}       ,
 		{'x' , "output-format"  , "Output-Format (parser|human)"            , OPTION_OPTIONAL_ARGUMENT , 's' , & xf}                ,
+		{'F' , "use-fill-value" , "Write a fill value"                      , OPTION_FLAG              , 'd', & args.fill_value}    ,
 		{0 , 	 "verify"  				, "Verify that the data read is correct (requires -r)", OPTION_FLAG ,						   'd' , & args.verify}                ,
 	  LAST_OPTION
 	  };
@@ -344,7 +347,7 @@ int main(int argc, char ** argv){
 	benchmark_t rbm;
 	benchmark_init(&rbm);
 	if (args.write_test || args.verify) {
-		benchmark_setup(&wbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_WRITE, args.par_access, args.is_unlimited);
+		benchmark_setup(&wbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_WRITE, args.par_access, args.is_unlimited, args.fill_value);
 		if(rank == 0){
 			print_header(& wbm);
 			header_printed = 1;
@@ -360,7 +363,7 @@ int main(int argc, char ** argv){
 	}
 	if (args.read_test) {
 		int ret;
-		benchmark_setup(&rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited);
+		benchmark_setup(&rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited, 0);
 		if(rank == 0 && ! header_printed){
 			print_header(& wbm);
 			header_printed = 1;
