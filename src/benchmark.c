@@ -304,9 +304,9 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 		stop_timer(&stop_io_slice);
 
 		if(compare_block != NULL){
-			for (size_t i = 0; i < bm->block_size; i+=sizeof(DATATYPE)) {
-				if (abs((double) bm->block[i] - (double)compare_block[i]) > 0.001) {
-					printf("ERROR %.16f != %.16f\n", (double)  bm->block[i], (double) compare_block[i]);
+			for (size_t i = 0; i < bm->block_size/sizeof(DATATYPE); i++) {
+				if (abs((double) bm->block[i] - (double) compare_block[i]) > 0.001) {
+					printf("ERROR %.3f (read) != %.3f (expected)\n", (double)  bm->block[i], (double) compare_block[i]);
 					verify_results = 0;
 				}
 			}

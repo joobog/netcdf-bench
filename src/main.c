@@ -195,7 +195,7 @@ int main(int argc, char ** argv){
 		{'f' , "testfile"       , "Filename of the testfile"                , OPTION_OPTIONAL_ARGUMENT , 's' , & args.testfn}       ,
 		{'x' , "output-format"  , "Output-Format (parser|human)"            , OPTION_OPTIONAL_ARGUMENT , 's' , & xf}                ,
 		{'F' , "use-fill-value" , "Write a fill value"                      , OPTION_FLAG              , 'd', & args.fill_value}    ,
-		{0 , 	 "verify"  				, "Verify that the data read is correct (requires -r)", OPTION_FLAG ,						   'd' , & args.verify}                ,
+		{0 , 	 "verify"  				, "Verify that the data read is correct (reads the data again)", OPTION_FLAG ,						   'd' , & args.verify}                ,
 	  LAST_OPTION
 	  };
 	int rank;
@@ -335,7 +335,7 @@ int main(int argc, char ** argv){
 	}
 
 
-	if ((args.read_test == false) & (args.write_test == false)) {
+	if ((args.read_test == false) & (args.write_test == false) & (args.verify == false)) {
 		args.write_test = true;
 	}
 
@@ -365,15 +365,25 @@ int main(int argc, char ** argv){
 		int ret;
 		benchmark_setup(&rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited, 0);
 		if(rank == 0 && ! header_printed){
-			print_header(& wbm);
+			print_header(& rbm);
 			header_printed = 1;
 		}
-		ret = benchmark_run(&rbm, args.verify ? wbm.block : NULL);
+		ret = benchmark_run(&rbm, args.verify ? wbm.block : NULL );
 		report_t report;
 		report_init(&report);
 		report_setup(&report, &rbm);
 		report_print(&report, args.report_type);
 		report_destroy(&report);
+
+	}else if (args.verify) {
+
+		int ret;
+		benchmark_setup(& rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited, 0);
+		if(rank == 0 && ! header_printed){
+			print_header(& rbm);
+			header_printed = 1;
+		}
+		ret = benchmark_run(& rbm, wbm.block);
 		if (args.verify){
 			if (ret) {
 				printf("TEST PASSED [%u]\n", wbm.rank);
@@ -383,6 +393,7 @@ int main(int argc, char ** argv){
 			}
 		}
 	}
+
 
 	MPI_Finalize();
 	benchmark_destroy(&wbm);
