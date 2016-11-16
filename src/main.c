@@ -37,6 +37,44 @@
 
 
 
+unsigned int to_char(const long long value, const size_t pos) {
+  const long long r = value / ((long long) pow(10, pos)); // remove the last positions, e.g. pos=2 and value=2136 -> r=21
+  const long long x = r / 10 * 10;                // set last position to zero, e.g. r=21 -> x=20
+  const long long res = r - x; // e.g. r-x = 21-20 = 1
+  return res;                                  
+}
+
+char* create_pretty_number_ll(const double value) {
+  char*  names[] = {"", "k", "M", "G", "T", "P", "E", "Z", "Y"};
+  char* pretty_number;
+  size_t pretty_number_size;
+  FILE* stream = open_memstream(&pretty_number, &pretty_number_size);
+
+  long long int a = (long long) value;
+  double b = value - a;
+
+  int n = floor(log10(a));
+  for (size_t pos = n; pos >= n/3*3; --pos) {
+    fprintf(stream, "%d", to_char(value, pos));
+  }
+  fprintf(stream, ".");
+  for (size_t pos = n/3*3-1; pos > n/3*3-2; --pos) {
+    fprintf(stream, "%d", to_char(value, pos));
+  }
+
+  fprintf(stream, " %s%s", names[n/3], "B");
+  fclose(stream);
+
+  return pretty_number;
+}
+
+void destroy_pretty_number_ll(char* number) {
+  free(number);
+  number = NULL;
+}
+
+
+
 /**
  * @brief
  *
@@ -105,11 +143,77 @@ struct args {
   int par_access;
   int is_unlimited;
 	int verify;
+	int fill_value;
 };
 
+void print_header(benchmark_t* bm){
+		char buffer[200];
+		const int dist2 = 40;
+		const int dist3 = 20;
+		const int dist4 = 20;
+		const size_t dsize = bm->dgeom[0] * bm->dgeom[1] * bm->dgeom[2] * bm->dgeom[3] * sizeof(bm->block[0]);
+		const size_t bsize = bm->bgeom[0] * bm->bgeom[1] * bm->bgeom[2] * bm->bgeom[3] * sizeof(bm->block[0]);
+		size_t csize = 0;
+		if (NC_CHUNKED == bm->storage) {
+			csize = bm->cgeom[0] * bm->cgeom[1] * bm->cgeom[2] * bm->cgeom[3] * sizeof(bm->block[0]);
+		}
+		snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->dgeom[0], bm->dgeom[1], bm->dgeom[2], bm->dgeom[3], sizeof(bm->block[0]));
+		printf("%-*s %*s %-*s\n" , dist2 , "Data geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
+		snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->bgeom[0], bm->bgeom[1], bm->bgeom[2], bm->bgeom[3], sizeof(bm->block[0]));
+		printf("%-*s %*s %-*s\n" , dist2 , "Block geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
+		if (NC_CHUNKED == bm->storage) {
+			snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->cgeom[0], bm->cgeom[1], bm->cgeom[2], bm->cgeom[3], sizeof(bm->block[0]));
+			printf("%-*s %*s %-*s\n" , dist2 , "Chunk geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
+		}
+   char * pretty_dsize = create_pretty_number_ll(dsize);
+		printf("%-*s %*.zu %-*s (%s)\n" , dist2 , "Datasize"                              , dist3 , dsize              , dist4 , "bytes", pretty_dsize);
+   destroy_pretty_number_ll(pretty_dsize);
+
+   char * pretty_bsize = create_pretty_number_ll(bsize);
+		printf("%-*s %*.zu %-*s (%s)\n" , dist2 , "Blocksize"                             , dist3 , bsize              , dist4 , "bytes", pretty_bsize);
+    destroy_pretty_number_ll(pretty_bsize);
+    if (NC_CHUNKED == bm->storage) {
+      char * pretty_csize = create_pretty_number_ll(csize);
+      printf("%-*s %*.zu %-*s (%s)\n" , dist2 , "Chunksize"                             , dist3 , csize              , dist4 , "bytes", pretty_csize);
+      destroy_pretty_number_ll(pretty_csize);
+    }
+
+		switch (bm->par_access) {
+			case NC_COLLECTIVE:
+					printf("%-*s %*s\n", dist2 , "I/O Access", dist3 , "collective");
+				break;
+			case NC_INDEPENDENT:
+					printf("%-*s %*s\n", dist2 , "I/O Access", dist3 , "independent");
+				break;
+		}
+		switch (bm->storage) {
+			case NC_CHUNKED:
+					printf("%-*s %*s\n", dist2 , "Storage", dist3 , "chunked");
+				break;
+			case NC_CONTIGUOUS:
+					printf("%-*s %*s\n", dist2 , "Storage", dist3 , "contiguous");
+				break;
+		}
+
+		if (bm->is_unlimited) {
+				printf("%-*s %*s\n", dist2 , "File length", dist3 , "unlimited");
+		}
+		else {
+				printf("%-*s %*s\n", dist2 , "File length", dist3 , "fixed");
+		}
+
+    if (bm->use_fill_value) {
+      printf("%-*s %*s\n"  ,dist2 , "Fill value", dist3 , "yes");
+    }
+    else {
+      printf("%-*s %*s\n"  ,dist2 , "File value", dist3 , "no");
+    }
+}
 
 int main(int argc, char ** argv){
   MPI_Init(&argc, &argv);
+
+
 
 	// Default values
 	struct args args;
@@ -128,26 +232,37 @@ int main(int argc, char ** argv){
   args.par_access = NC_INDEPENDENT;
   args.is_unlimited = 0;
 	args.verify = 0;
+	args.fill_value = 0;
 
 	char * dg = NULL, * bg  = NULL, *cg = NULL, *iot = "ind", *xf = "human";
 
 	option_help options [] = {
-		{'n' , "nn"             , "Number of nodes"                                    , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.procs.nn}     , 
-		{'p' , "ppn"            , "Number of processes"                                , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.procs.ppn}    , 
-		{'d' , "data-geometry"  , "Data geometry (t:x:y:z)"                            , OPTION_OPTIONAL_ARGUMENT , 's' , & dg}                , 
-		{'b' , "block-geometry" , "Block geometry (t:x:y:z)"                           , OPTION_OPTIONAL_ARGUMENT , 's' , & bg}                , 
-		{'c' , "chunk-geometry" , "Chunk geometry (t:x:y:z|auto)"                      , OPTION_OPTIONAL_ARGUMENT , 's' , & cg}                , 
-		{'r' , "read"           , "Enable read benchmark"                              , OPTION_FLAG              , 'd' , & args.read_test}    , 
-		{'w' , "write"          , "Enable write benchmark"                             , OPTION_FLAG              , 'd' , & args.write_test}   , 
-		{'t' , "io-type"        , "Independent / Collective I/O (ind|coll)"            , OPTION_OPTIONAL_ARGUMENT , 's' , & iot}               , 
-		{'u' , "unlimited"      , "Enable unlimited time dimension"                    , OPTION_FLAG              , 'd' , & args.is_unlimited} , 
-		{'f' , "testfile"       , "Filename of the testfile"                           , OPTION_OPTIONAL_ARGUMENT , 's' , & args.testfn}       , 
-		{'x' , "output-format"  , "Output-Format (parser|human)"                       , OPTION_OPTIONAL_ARGUMENT , 's' , & xf}                , 
-		{0   , "verify"         , "Verify that the data read is correct (requires -r)" , OPTION_FLAG              , 'd' , & args.verify}       , 
+		{'n' , "nn"             , "Number of nodes"                         , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.procs.nn}     ,
+		{'p' , "ppn"            , "Number of processes"                     , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.procs.ppn}    ,
+		{'d' , "data-geometry"  , "Data geometry (t:x:y:z)"                 , OPTION_OPTIONAL_ARGUMENT , 's' , & dg}                ,
+		{'b' , "block-geometry" , "Block geometry (t:x:y:z)"                , OPTION_OPTIONAL_ARGUMENT , 's' , & bg}                ,
+		{'c' , "chunk-geometry" , "Chunk geometry (t:x:y:z|auto)"           , OPTION_OPTIONAL_ARGUMENT , 's' , & cg}                ,
+		{'r' , "read"           , "Enable read benchmark"                   , OPTION_FLAG              , 'd' , & args.read_test}    ,
+		{'w' , "write"          , "Enable write benchmark"                  , OPTION_FLAG              , 'd' , & args.write_test}   ,
+		{'t' , "io-type"        , "Independent / Collective I/O (ind|coll)" , OPTION_OPTIONAL_ARGUMENT , 's' , & iot}               ,
+		{'u' , "unlimited"      , "Enable unlimited time dimension"         , OPTION_FLAG              , 'd' , & args.is_unlimited} ,
+		{'f' , "testfile"       , "Filename of the testfile"                , OPTION_OPTIONAL_ARGUMENT , 's' , & args.testfn}       ,
+		{'x' , "output-format"  , "Output-Format (parser|human)"            , OPTION_OPTIONAL_ARGUMENT , 's' , & xf}                ,
+		{'F' , "use-fill-value" , "Write a fill value"                      , OPTION_FLAG              , 'd', & args.fill_value}    ,
+		{0 , 	 "verify"  				, "Verify that the data read is correct (reads the data again)", OPTION_FLAG ,						   'd' , & args.verify}                ,
 	  LAST_OPTION
 	  };
-	parseOptions(argc, argv, options);
-	printf("Benchtool (datatype: %s) \n", xstr(DATATYPE));
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, & rank);
+	// check the correctness of the options only for rank 0
+	if (rank == 0){
+		printf("Benchtool (datatype: %s) \n", xstr(DATATYPE));
+		parseOptions(argc, argv, options);
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (rank != 0){
+		parseOptions(argc, argv, options);
+	}
 
 	parse_dims(dg, &args.dgeom, &args.dgeom_size);
 	parse_dims(bg, &args.bgeom, &args.bgeom_size);
@@ -274,38 +389,55 @@ int main(int argc, char ** argv){
 	}
 
 
-	if ((args.read_test == false) & (args.write_test == false)) {
+	if ((args.read_test == false) & (args.write_test == false) & (args.verify == false)) {
 		args.write_test = true;
 	}
 
 	benchmark_t wbm;
 	benchmark_init(&wbm);
+
+	int header_printed = 0;
+
 	benchmark_t rbm;
 	benchmark_init(&rbm);
 	if (args.write_test || args.verify) {
-		benchmark_setup(&wbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_WRITE, args.par_access, args.is_unlimited);
+		benchmark_setup(&wbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_WRITE, args.par_access, args.is_unlimited, args.fill_value);
+		if(rank == 0){
+			print_header(& wbm);
+			header_printed = 1;
+		}
 	}
 	if (args.write_test) {
 		benchmark_run(&wbm, NULL);
 		report_t report;
 		report_init(&report);
 		report_setup(&report, &wbm);
-//		report_print(&report, args.report_type);
-		report_print(&report, REPORT_HUMAN);
-//		report_print(&report, REPORT_PARSER);
+		report_print(&report, args.report_type);
 		report_destroy(&report);
 	}
 	if (args.read_test) {
 		int ret;
-		benchmark_setup(&rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited);
-		ret = benchmark_run(&rbm, args.verify ? wbm.block : NULL);
+		benchmark_setup(&rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited, 0);
+		if(rank == 0 && ! header_printed){
+			print_header(& rbm);
+			header_printed = 1;
+		}
+		ret = benchmark_run(&rbm, args.verify ? wbm.block : NULL );
 		report_t report;
 		report_init(&report);
 		report_setup(&report, &rbm);
-//		report_print(&report, args.report_type);
-		report_print(&report, REPORT_HUMAN);
-//		report_print(&report, REPORT_PARSER);
+		report_print(&report, args.report_type);
 		report_destroy(&report);
+
+	}else if (args.verify) {
+
+		int ret;
+		benchmark_setup(& rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited, 0);
+		if(rank == 0 && ! header_printed){
+			print_header(& rbm);
+			header_printed = 1;
+		}
+		ret = benchmark_run(& rbm, wbm.block);
 		if (args.verify){
 			if (ret) {
 				printf("TEST PASSED [%u]\n", wbm.rank);
@@ -315,6 +447,7 @@ int main(int argc, char ** argv){
 			}
 		}
 	}
+
 
 	MPI_Finalize();
 	benchmark_destroy(&wbm);

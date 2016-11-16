@@ -3,7 +3,7 @@
  *
  *       Filename:  report.c
  *
- *    Description:  
+ *    Description:
  *
  *        Version:  1.0
  *        Created:  08/18/2016 10:06:57 AM
@@ -104,16 +104,16 @@ static void benchmark_receive(benchmark_t** bm, const int tag) {
 
 
 /**
- * @brief 
+ * @brief
  *
- * @param 
+ * @param
  */
 void report_init(report_t* report){
 	report->bm = NULL;
 }
 
 /**
- * @brief 
+ * @brief
  *
  * @param report
  * @param bm
@@ -123,7 +123,7 @@ void report_setup(report_t* report, benchmark_t* bm) {
 }
 
 /**
- * @brief 
+ * @brief
  *
  * @param report
  */
@@ -134,8 +134,8 @@ void report_destroy(report_t* report) {
 
 
 static void table_write_entry(
-		table_t* table, 
-		const size_t nrows, const size_t ncols, const size_t pos, 
+		table_t* table,
+		const size_t nrows, const size_t ncols, const size_t pos,
 		const char* name, const char* type, const char* quantity, const char* unit, const char* value) {
 	assert(pos < ncols);
 	table_t tab = *table;
@@ -297,7 +297,7 @@ static void compute_stats (mam_t* open, mam_t* io, mam_t* close, mam_t* perf, ma
 
 
 /**
- * @brief 
+ * @brief
  *
  * @param report
  * @param type
@@ -310,14 +310,14 @@ void report_print(const report_t* report, const report_type_t type) {
 
 	benchmark_t** benchmarks = NULL;
 
-	if (0 == rank){
-		benchmarks= (benchmark_t**)malloc(sizeof(benchmark_t*) * nranks);
-		for (int i = 1; i < nranks; ++i) {
-			benchmarks[i] = malloc(sizeof(benchmark_t));
-			benchmark_init(benchmarks[i]);
-		}
-		benchmarks[0] = report->bm;
-	}
+  if (0 == rank){
+    benchmarks= (benchmark_t**)malloc(sizeof(benchmark_t*) * nranks);
+    for (int i = 1; i < nranks; ++i) {
+      benchmarks[i] = malloc(sizeof(benchmark_t));
+      benchmark_init(benchmarks[i]);
+    }
+    benchmarks[0] = report->bm;
+  }
 
 	benchmark_send(report->bm, 412);
 	benchmark_receive(benchmarks, 412);
@@ -345,67 +345,28 @@ void report_print(const report_t* report, const report_type_t type) {
 
 
 		char id[200];
-		sprintf(id, "%s:%u:%s", report->bm->processor, report->bm->rank, io_mode_str);
+		sprintf(id, "%s:%s", "benchmark", io_mode_str);
 
 		const int dist1 = 20;
 		const int dist2 = 40;
 		const int dist3 = 20;
 		const int dist4 = 20;
 		
+		printf("%-*s %-*s %*.10s %*.10s %*.10s %-*s\n" , dist1 , "" , dist2 , ""                                 , dist3 , "min"               , dist3 , "avg"               , dist3 , "max"               , dist4 , "");
 		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "Open time"                        , dist3 , open_stats.min      , dist3 , open_stats.avg      , dist3 , open_stats.max      , dist4 , "secs");
 		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "I/O time"                         , dist3 , io_stats.min        , dist3 , io_stats.avg        , dist3 , io_stats.max        , dist4 , "secs");
 		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "Close time"                       , dist3 , close_stats.min     , dist3 , close_stats.avg     , dist3 , close_stats.max     , dist4 , "secs");
 		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "I/O Performance (w/o open/close)" , dist3 , perf_pure_stats.min , dist3 , perf_pure_stats.avg , dist3 , perf_pure_stats.max , dist4 , "MB/s");
 		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "I/O Performance"                  , dist3 , perf_stats.min      , dist3 , perf_stats.avg      , dist3 , perf_stats.max      , dist4 , "MB/s");
 
-		const size_t dsize = bm->dgeom[0] * bm->dgeom[1] * bm->dgeom[2] * bm->dgeom[3] * sizeof(bm->block[0]);
-		const size_t bsize = bm->bgeom[0] * bm->bgeom[1] * bm->bgeom[2] * bm->bgeom[3] * sizeof(bm->block[0]);
-    size_t csize = 0;
-    if (NC_CHUNKED == bm->storage) {
-      csize = bm->cgeom[0] * bm->cgeom[1] * bm->cgeom[2] * bm->cgeom[3] * sizeof(bm->block[0]);
-    }
-
-		char buffer[200];
-		snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->dgeom[0], bm->dgeom[1], bm->dgeom[2], bm->dgeom[3], sizeof(bm->block[0]));
-		printf("%-*s %-*s %*s %-*s\n" , dist1 , id , dist2 , "Data geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
-		snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->bgeom[0], bm->bgeom[1], bm->bgeom[2], bm->bgeom[3], sizeof(bm->block[0]));
-		printf("%-*s %-*s %*s %-*s\n" , dist1 , id , dist2 , "Block geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
-		if (NC_CHUNKED == bm->storage) {
-			snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->cgeom[0], bm->cgeom[1], bm->cgeom[2], bm->cgeom[3], sizeof(bm->block[0]));
-			printf("%-*s %-*s %*s %-*s\n" , dist1 , id , dist2 , "Chunk geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
-		}
-		printf("%-*s %-*s %*.zu %-*s\n"  , dist1 , id , dist2 , "Datasize"  , dist3 , dsize , dist4 , "bytes");
-		printf("%-*s %-*s %*.zu %-*s\n"  , dist1 , id , dist2 , "Blocksize" , dist3 , bsize , dist4 , "bytes");
-		if (NC_CHUNKED == bm->storage) {
-		printf("%-*s %-*s %*.zu %-*s\n"  , dist1 , id , dist2 , "Chunksize" , dist3 , csize , dist4 , "bytes");
-		}
-
-    switch (bm->par_access) {
-      case NC_COLLECTIVE:
-        printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "I/O Access", dist3 , "collective");
-        break;
-      case NC_INDEPENDENT:
-        printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "I/O Access", dist3 , "independent");
-        break;
-    }
-    switch (bm->storage) {
-      case NC_CHUNKED:
-        printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "Storage", dist3 , "chunked");
-        break;
-      case NC_CONTIGUOUS:
-        printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "Storage", dist3 , "contiguous");
-        break;
-    }
-
-    if (bm->is_unlimited) {
-      printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "File length", dist3 , "unlimited");
-    }
-    else {
-      printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "File length", dist3 , "fixed");
-    }
-
-
 		DEBUG_MESSAGE("REPORT_END\n");
-
 	}
+
+  if (0 == rank) {
+    for (int i = 1; i < nranks; ++i) {
+      benchmark_destroy(benchmarks[i]);
+      free(benchmarks[i]);
+    }
+    free(benchmarks);
+  }
 }

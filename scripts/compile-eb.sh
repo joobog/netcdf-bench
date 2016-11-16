@@ -3,13 +3,20 @@ setopt SH_WORD_SPLIT
 
 SCRIPT="$(readlink -f $0)"
 SCRIPTPATH="$(dirname $SCRIPT)"
-cd $SCRIPTPATH
+cd "$SCRIPTPATH/.."
 
 module purge
-module load intel/16.0.3 
-module load fca/2.5.2393
-module load mxm/3.3.3002
-module load bullxmpi_mlx_mt/bullxmpi_mlx_mt-1.2.8.3
+#module load intel/16.0.3 
+module load intel/17.0.1
+#module load fca/2.5.2393
+module load fca/2.5.2431
+#module load mxm/3.3.3002
+module load mxm/3.4.3082 
+module load betke/cmake
+#module load bullxmpi_mlx_mt/bullxmpi_mlx_mt-1.2.8.3
+module load bullxmpi_mlx_mt/bullxmpi_mlx_mt-1.2.9.2
+
+
 #module load gcc/5.1.0
 #module load openmpi/1.8.4-gcc51
 #module load gcc/4.9.2
@@ -19,33 +26,25 @@ module load betke/netcdf/4.4.0
 
 module list
 
-CC="$(which mpicc)"
-CFLAGS="-g3 -Wall -O0 -std=gnu11 $(pkg-config --cflags netcdf)"
-LDFLAGS="$(pkg-config --libs netcdf) -lrt"
+[ ! -d build ] && mkdir build
+cd build
 
-SRC="../src"
 
-declare -A TYPES
-TYPES[char]="NC_BYTE"
-TYPES[short]="NC_SHORT"
-TYPES[int]="NC_INT"
-TYPES[double]="NC_DOUBLE"
 
-echo "${(@k)TYPES}"
+PREFIX="$SCRIPTPATH/../install"
+NCDIR="/work/ku0598/k202107/software/install/netcdf/4.4.0"
+
+CMAKEARGS="-DCMAKE_C_COMPILER=$(which icc)"
+CMAKEARGS="-DCMAKE_INSTALL_PREFIX=$PREFIX $CMAKEARGS"
+CMAKEARGS="-DNETCDF_INCLUDE_DIR=$NCDIR/include $CMAKEARGS"
+CMAKEARGS="-DNETCDF_LIBRARY=$NCDIR/lib/libnetcdf.so $CMAKEARGS"
+#CMAKEARGS="-DCMAKE_BUILD_TYPE=Debug $CMAKEARGS"
+CMAKEARGS="-DCMAKE_BUILD_TYPE=Release $CMAKEARGS"
+
+
 set -x
-for K in ${(@k)TYPES}; do
-	CPPFLAGS="-DDEBUG -DDATATYPE=$K -DNC_DATATYPE=${TYPES[$K]}"
-	${CC} ${CPPFLAGS} ${CFLAGS} ${LDFLAGS} -o "../benchtool-$K" \
-		${SRC}/types.c \
-		${SRC}/report.c \
-		${SRC}/timer.c \
-		${SRC}/benchmark.c \
-		${SRC}/main.c \
-		${SRC}/options.c
-done
+cmake $CMAKEARGS ..
 set +x
 
-
-exit 0
-
-
+cd build
+make -j install

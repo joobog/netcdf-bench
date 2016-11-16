@@ -3,15 +3,15 @@
  *
  *       Filename:  report.h
  *
- *    Description:  
+ *    Description:
  *
  *        Version:  1.0
  *        Created:  08/18/2016 10:06:54 AM
  *       Revision:  none
  *       Compiler:  gcc
  *
- *         Author:  YOUR NAME (), 
- *   Organization:  
+ *         Author:  YOUR NAME (),
+ *   Organization:
  *
  * =====================================================================================
  */
@@ -25,7 +25,7 @@
 #include "benchmark.h"
 
 #define NROWS 5
-#define NCOLS 12
+#define NCOLS 8
 
 typedef char* (*table_t)[NROWS];
 

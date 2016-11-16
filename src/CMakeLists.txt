@@ -23,3 +23,7 @@ if(MPI_LINK_FLAGS)
   set_target_properties(benchtool PROPERTIES
     LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()
+
+#add_test(table CONFIGURATION Debug ./test/test_table.cpp) 
+
+install_programs(/bin FILES benchtool)

@@ -17,7 +17,7 @@ module load betke/netcdf/4.4.0
 export TESTFILE="../test/testfile.nc"
 #export TESTFILE="/dev/shm/test/testfile.nc"
 export TESTDIR="$(dirname $TESTFILE)"
-export BENCHTOOL="../benchtool"
+export BENCHTOOL="../install/bin/benchtool"
 
 if [ -z ${SLURM_NNODES+x} ]
 then
@@ -30,10 +30,10 @@ else
 	export PPN=$SLURM_NTASKS_PER_NODE
 fi
 
-export X="$(($NN*2400/$NN))"
-export Y="$(($PPN*2400/$PPN))"
-export Z=160
-export T=3
+export X="$(($NN*240/$NN))"
+export Y="$(($PPN*240/$PPN))"
+export Z=20
+export T=10
 
 [ -d $TESTDIR ] && rm -rf $TESTDIR
 mkdir -p $TESTDIR &> /dev/null
