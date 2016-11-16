@@ -26,56 +26,81 @@
 #include <netcdf.h>
 #include <netcdf_par.h>
 
-//typedef struct benchmark_t {
-//	char* processor;
-//	char* testfn;
-//	char* block;
-//	measurement_t* ms;
-//	int nranks;
-//	int rank;
-//	size_t ndims;
-//	size_t dgeom[NDIMS];
-//	size_t bgeom[NDIMS];
-//	size_t cgeom[NDIMS];
-//	procs_t procs;
-//	io_mode_t io_mode;
-//	size_t block_size;
-//	duration_t duration;
-//	size_t mssize;
-//	int par_access;
-//	int storage;
-//	bool is_unlimited;
-//} benchmark_t;
 
-//static MPI_Datatype create_benchmark_type() {
-//{
-//	 // Set-up the arguments for the type constructor
-//	 MPI_Datatype new_type;
-//
-//	 int count = 3;
-//	 int blocklens[] = {1, 1, 1};
-//
-//	 MPI_Aint indices[3];
-//	 indices[0] = (MPI_Aint)offsetof(benchmark_t, processor);
-//	 indices[1] = (MPI_Aint)offsetof(benchmark_t, testfn);
-//	 indices[2] = (MPI_Aint)offsetof(benchmark_t, block);
-//
-//	 MPI_Datatype old_types[] = {MPI_CHAR, MPI_CHAR, MPI_CHAR};
-//
-//	 MPI_Type_struct(count,blocklens,indices,old_types,&new_type);
-//	 MPI_Type_commit(&new_type);
-//
-//	 return new_type;
-//}
-//
-//
-//static void benchmark_send(benchmark_t* bm) {
-//	MPI_Datatype type = create_benchmark_type();
-//}
-//
-//static void benchmark_receive(benchmark_t* bm) {
-//
-//}
+
+
+/**
+ * @brief 
+ *
+ * @param bm
+ * @param tag
+ */
+static void benchmark_send(benchmark_t* bm, const int tag) {
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	int t;
+	if (0 != rank) {
+		t = tag;
+		MPI_Send(bm, sizeof(benchmark_t), MPI_BYTE, 0, t, MPI_COMM_WORLD);
+		++t;
+		MPI_Send(bm->processor, strlen(bm->processor) + 1, MPI_CHAR, 0, t, MPI_COMM_WORLD);
+		++t;
+		MPI_Send(bm->testfn, strlen(bm->testfn) + 1, MPI_CHAR, 0, t,  MPI_COMM_WORLD);
+		++t;
+		MPI_Send(bm->ms, sizeof(bm->ms[0]) * bm->mssize, MPI_BYTE, 0, t, MPI_COMM_WORLD);
+	}
+}
+
+
+
+/**
+ * @brief 
+ *
+ * @param bm
+ * @param tag
+ */
+static void benchmark_receive(benchmark_t** bm, const int tag) {
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	if (0 == rank) {
+		int nranks;
+		MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+		MPI_Status status;
+		int t;
+		int count;
+		for (int i = 1; i < nranks; ++i) {
+			t = tag;
+			MPI_Recv(bm[i], sizeof(benchmark_t), MPI_BYTE, i, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			// !!! Attention: All pointers are invalid !!!
+			bm[i]->processor = malloc(0);
+			bm[i]->testfn = malloc(0);
+			bm[i]->block = malloc(0);
+			bm[i]->ms = malloc(0);
+			// !!! END Attention: All pointers are invalid !!!
+
+			// Get processor
+			++t;
+			MPI_Probe(i, t, MPI_COMM_WORLD, &status);
+			MPI_Get_count(&status, MPI_CHAR, &count);
+			bm[i]->processor = realloc(bm[i]->processor, count);
+			MPI_Recv(bm[i]->processor, count, MPI_CHAR, i, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+			// Get test filename
+			++t;
+			MPI_Probe(i, t, MPI_COMM_WORLD, &status);
+			MPI_Get_count(&status, MPI_CHAR, &count);
+			bm[i]->testfn = realloc(bm[i]->testfn, count);
+			MPI_Recv(bm[i]->testfn, count, MPI_CHAR, i, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+			// Get measurements
+			++t;
+			MPI_Probe(i, t, MPI_COMM_WORLD, &status);
+			MPI_Get_count(&status, MPI_BYTE, &count);
+			bm[i]->ms = realloc(bm[i]->ms, count);
+			MPI_Recv(bm[i]->ms, count, MPI_BYTE, i, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		}
+	}
+}
 
 
 /**
@@ -137,6 +162,9 @@ static void table_write_entry(
 }
 
 
+
+
+
 static void table_destroy(table_t* table, const size_t nrows, const size_t ncols) {
 	table_t tab = *table;
 	for (int row = 0; row < NROWS; ++row) {
@@ -168,6 +196,106 @@ static void append_string(char** buf, size_t* buf_size, const char* vb) {
 }
 
 
+
+//typedef struct benchmark_t {
+//	char* processor;
+//	char* testfn;
+//	char* block;
+//	measurement_t* ms;
+//	int nranks;
+//	int rank;
+//	size_t ndims;
+//	size_t dgeom[NDIMS];
+//	size_t bgeom[NDIMS];
+//	size_t cgeom[NDIMS];
+//	procs_t procs;
+//	io_mode_t io_mode;
+//	size_t block_size;
+//	duration_t duration;
+//	size_t mssize;
+//	int par_access;
+//	int storage;
+//	bool is_unlimited;
+//} benchmark_t;
+
+
+static double sum(const double* elems, const size_t size){
+	double sum = 0;
+	for(size_t i = 0; i < size; ++i) {
+		sum +=elems[i];
+	}
+	return sum;
+}
+
+static double avg(const double* elems, const size_t size) {
+	return sum(elems, size) / size;
+}
+
+static double min(const double* elems, const size_t size) {
+	assert(size > 0);
+	double min = elems[0];
+	for (size_t i = 0; i < size; ++i) {
+		if (elems[i] < min) {
+			min = elems[i];
+		}
+	}
+	return min;
+}
+
+static double max(const double* elems, const size_t size) {
+	assert(size > 0);
+	double max = elems[0];
+	for (size_t i = 0; i < size; ++i) {
+		if (elems[i] > max) {
+			max = elems[i];
+		}
+	}
+	return max;
+}
+
+
+static double get_open_time(const benchmark_t* bms) {return bms->duration.open;}
+static double get_io_time(const benchmark_t* bms) {return bms->duration.io;}
+static double get_close_time(const benchmark_t* bms) {return bms->duration.close;}
+static double get_perf(const benchmark_t* bm) {
+	const size_t dsize = bm->dgeom[0] * bm->dgeom[1] * bm->dgeom[2] * bm->dgeom[3] * sizeof(bm->block[0]);
+	const double total_time =  bm->duration.open + bm->duration.io + bm->duration.close;
+	return dsize / total_time / (1024 * 1024);
+}
+static double get_perf_pure(const benchmark_t* bm) {
+	const size_t dsize = bm->dgeom[0] * bm->dgeom[1] * bm->dgeom[2] * bm->dgeom[3] * sizeof(bm->block[0]);
+	const double total_time =   bm->duration.io;
+	return dsize / total_time / (1024 * 1024);
+}
+
+
+static double* create_bm_array (const benchmark_t** bms, size_t size, get_bm_value_t get_bm_value, double* array) {
+	for (size_t i = 0; i < size; ++i) {
+		array[i] = get_bm_value(bms[i]);
+	}
+	return array;
+}
+
+static void compute_stat (mam_t* mam, const benchmark_t** bms, const size_t bms_size, get_bm_value_t get_bm_value) {
+	double* array = (double*) malloc(sizeof(double) * bms_size);
+	mam->min = min(create_bm_array(bms, bms_size, get_bm_value, array), bms_size);
+	mam->avg = avg(create_bm_array(bms, bms_size, get_bm_value, array), bms_size);
+	mam->max = max(create_bm_array(bms, bms_size, get_bm_value, array), bms_size);
+	free(array);
+}
+
+static void compute_stats (mam_t* open, mam_t* io, mam_t* close, mam_t* perf, mam_t* perf_pure, const benchmark_t** bms, const size_t bms_size) {
+	compute_stat(open, bms, bms_size, get_open_time);
+	compute_stat(io, bms, bms_size, get_io_time);
+	compute_stat(close, bms, bms_size, get_close_time);
+	compute_stat(perf, bms, bms_size, get_perf);
+	compute_stat(perf_pure, bms, bms_size, get_perf_pure);
+}
+
+
+
+
+
 /**
  * @brief 
  *
@@ -179,233 +307,105 @@ void report_print(const report_t* report, const report_type_t type) {
 	int rank;
 	MPI_Comm_size(MPI_COMM_WORLD, &nranks);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	benchmark_t* bm = report->bm;
 
-	const size_t dsize = bm->dgeom[0] * bm->dgeom[1] * bm->dgeom[2] * bm->dgeom[3] * sizeof(bm->block[0]);
-	const size_t bsize = bm->bgeom[0] * bm->bgeom[1] * bm->bgeom[2] * bm->bgeom[3] * sizeof(bm->block[0]);
-	size_t csize = 0;
-	if (NC_CHUNKED == bm->storage) {
-		csize = bm->cgeom[0] * bm->cgeom[1] * bm->cgeom[2] * bm->cgeom[3] * sizeof(bm->block[0]);
+	benchmark_t** benchmarks = NULL;
+
+	if (0 == rank){
+		benchmarks= (benchmark_t**)malloc(sizeof(benchmark_t*) * nranks);
+		for (int i = 1; i < nranks; ++i) {
+			benchmarks[i] = malloc(sizeof(benchmark_t));
+			benchmark_init(benchmarks[i]);
+		}
+		benchmarks[0] = report->bm;
 	}
 
-	char io_mode_str[10];
-	switch (bm->io_mode) {
-		case IO_MODE_WRITE:
-			strcpy(io_mode_str, "write");
-			break;
-		case IO_MODE_READ:
-			strcpy(io_mode_str, "read");
-			break;
-	}
+	benchmark_send(report->bm, 412);
+	benchmark_receive(benchmarks, 412);
+
+	if (0 == rank) {
+		DEBUG_MESSAGE("REPORT_START\n");
+		benchmark_t* bm = report->bm;
+		char io_mode_str[10];
+		switch (bm->io_mode) {
+			case IO_MODE_WRITE:
+				strcpy(io_mode_str, "write");
+				break;
+			case IO_MODE_READ:
+				strcpy(io_mode_str, "read");
+				break;
+		}
+
+		mam_t open_stats;
+		mam_t io_stats;
+		mam_t close_stats;
+		mam_t perf_stats;
+		mam_t perf_pure_stats;
+		const size_t bms_size = benchmarks[0]->nranks;
+		compute_stats(&open_stats, &io_stats, &close_stats, &perf_stats, &perf_pure_stats, (const benchmark_t**) benchmarks, bms_size);
 
 
-	char id[200];
-	sprintf(id, "%s:%u:%s", report->bm->processor, report->bm->rank, io_mode_str);
+		char id[200];
+		sprintf(id, "%s:%u:%s", report->bm->processor, report->bm->rank, io_mode_str);
 
-	switch (type) {
-		case REPORT_HUMAN:
-			{
-				const int dist1 = 20;
-				const int dist2 = 40;
-				const int dist3 = 20;
-				const int dist4 = 20;
-        const double io_perf = (double) dsize / 1024 / 1024 / (bm->duration.io + bm->duration.open + bm->duration.close);
-        const double io_pure_perf = (double) dsize / 1024 / 1024 / bm->duration.io;
+		const int dist1 = 20;
+		const int dist2 = 40;
+		const int dist3 = 20;
+		const int dist4 = 20;
+		
+		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "Open time"                        , dist3 , open_stats.min      , dist3 , open_stats.avg      , dist3 , open_stats.max      , dist4 , "secs");
+		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "I/O time"                         , dist3 , io_stats.min        , dist3 , io_stats.avg        , dist3 , io_stats.max        , dist4 , "secs");
+		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "Close time"                       , dist3 , close_stats.min     , dist3 , close_stats.avg     , dist3 , close_stats.max     , dist4 , "secs");
+		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "I/O Performance (w/o open/close)" , dist3 , perf_pure_stats.min , dist3 , perf_pure_stats.avg , dist3 , perf_pure_stats.max , dist4 , "MB/s");
+		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "I/O Performance"                  , dist3 , perf_stats.min      , dist3 , perf_stats.avg      , dist3 , perf_stats.max      , dist4 , "MB/s");
 
-				printf("%-*s %-*s %*.10f %-*s\n" , dist1 , id , dist2 , "Open time"                             , dist3 , bm->duration.open  , dist4 , "secs");
-				printf("%-*s %-*s %*.10f %-*s\n" , dist1 , id , dist2 , "I/O time"                              , dist3 , bm->duration.io    , dist4 , "secs");
-				printf("%-*s %-*s %*.10f %-*s\n" , dist1 , id , dist2 , "Close time"                            , dist3 , bm->duration.close , dist4 , "secs");
-				char buffer[200];
-				snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->dgeom[0], bm->dgeom[1], bm->dgeom[2], bm->dgeom[3], sizeof(bm->block[0]));
-				printf("%-*s %-*s %*s %-*s\n" , dist1 , id , dist2 , "Data geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
-				snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->bgeom[0], bm->bgeom[1], bm->bgeom[2], bm->bgeom[3], sizeof(bm->block[0]));
-				printf("%-*s %-*s %*s %-*s\n" , dist1 , id , dist2 , "Block geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
-				if (NC_CHUNKED == bm->storage) {
-					snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->cgeom[0], bm->cgeom[1], bm->cgeom[2], bm->cgeom[3], sizeof(bm->block[0]));
-					printf("%-*s %-*s %*s %-*s\n" , dist1 , id , dist2 , "Chunk geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
-				}
-				printf("%-*s %-*s %*.zu %-*s\n" , dist1 , id , dist2 , "Datasize"                              , dist3 , dsize              , dist4 , "bytes");
-				printf("%-*s %-*s %*.zu %-*s\n" , dist1 , id , dist2 , "Blocksize"                             , dist3 , bsize              , dist4 , "bytes");
-				if (NC_CHUNKED == bm->storage) {
-					printf("%-*s %-*s %*.zu %-*s\n" , dist1 , id , dist2 , "Chunksize"                             , dist3 , csize              , dist4 , "bytes");
-				}
-				printf("%-*s %-*s %*.4f %-*s\n"  , dist1 , id , dist2 , "I/O Performance (w/o open/close)" , dist3 , io_pure_perf       , dist4 , "MiB/s");
-				printf("%-*s %-*s %*.4f %-*s\n"  , dist1 , id , dist2 , "I/O Performance"                       , dist3 , io_perf            , dist4 , "MiB/s");
-//	int par_access;
-//	int storage;
-//	bool is_unlimited;
-				switch (bm->par_access) {
-					case NC_COLLECTIVE:
-							printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "I/O Access", dist3 , "collective");
-						break;
-					case NC_INDEPENDENT:
-							printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "I/O Access", dist3 , "independent");
-						break;
-				}
-				switch (bm->storage) {
-					case NC_CHUNKED:
-							printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "Storage", dist3 , "chunked");
-						break;
-					case NC_CONTIGUOUS:
-							printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "Storage", dist3 , "contiguous");
-						break;
-				}
+		const size_t dsize = bm->dgeom[0] * bm->dgeom[1] * bm->dgeom[2] * bm->dgeom[3] * sizeof(bm->block[0]);
+		const size_t bsize = bm->bgeom[0] * bm->bgeom[1] * bm->bgeom[2] * bm->bgeom[3] * sizeof(bm->block[0]);
+    size_t csize = 0;
+    if (NC_CHUNKED == bm->storage) {
+      csize = bm->cgeom[0] * bm->cgeom[1] * bm->cgeom[2] * bm->cgeom[3] * sizeof(bm->block[0]);
+    }
 
-				if (bm->is_unlimited) {
-						printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "File length", dist3 , "unlimited");
-				}
-				else {
-						printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "File length", dist3 , "fixed");
-				}
+		char buffer[200];
+		snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->dgeom[0], bm->dgeom[1], bm->dgeom[2], bm->dgeom[3], sizeof(bm->block[0]));
+		printf("%-*s %-*s %*s %-*s\n" , dist1 , id , dist2 , "Data geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
+		snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->bgeom[0], bm->bgeom[1], bm->bgeom[2], bm->bgeom[3], sizeof(bm->block[0]));
+		printf("%-*s %-*s %*s %-*s\n" , dist1 , id , dist2 , "Block geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
+		if (NC_CHUNKED == bm->storage) {
+			snprintf(buffer, 200, "%zu:%zu:%zu:%zu x %zu", bm->cgeom[0], bm->cgeom[1], bm->cgeom[2], bm->cgeom[3], sizeof(bm->block[0]));
+			printf("%-*s %-*s %*s %-*s\n" , dist1 , id , dist2 , "Chunk geometry (t:x:y:z x sizeof(type))", dist3 , buffer, dist4, "bytes");
+		}
+		printf("%-*s %-*s %*.zu %-*s\n"  , dist1 , id , dist2 , "Datasize"  , dist3 , dsize , dist4 , "bytes");
+		printf("%-*s %-*s %*.zu %-*s\n"  , dist1 , id , dist2 , "Blocksize" , dist3 , bsize , dist4 , "bytes");
+		if (NC_CHUNKED == bm->storage) {
+		printf("%-*s %-*s %*.zu %-*s\n"  , dist1 , id , dist2 , "Chunksize" , dist3 , csize , dist4 , "bytes");
+		}
 
-				printf("%-*s %-*s\n"             , dist1 , id , dist2 , "Block I/O times");
-				const size_t max_len = 4;
-				const int dist5 = 20;
-				for (size_t i = 0; i < bm->mssize;) {
-					printf("%0*zu: ", 6, i);
-					for (size_t len = 0; (i < bm->mssize) & (len < max_len); ++i, ++len) {
-						printf("%*.10f secs", dist5, time_to_double(bm->ms[i].stop) - time_to_double(bm->ms[i].start));
-					}
-					printf("\n");
-				}
-				printf("\n");
-			}
-			break;
-		case REPORT_PARSER:
-			{
-				// Memory allocation and initialization
-				table_t table = malloc(NCOLS * sizeof(*table));
-				for (int row = 0; row < NROWS; ++row) {
-					for (int col = 0; col < NCOLS; ++col) {
-						table[col][row] = NULL;
-					}
-				}
+    switch (bm->par_access) {
+      case NC_COLLECTIVE:
+        printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "I/O Access", dist3 , "collective");
+        break;
+      case NC_INDEPENDENT:
+        printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "I/O Access", dist3 , "independent");
+        break;
+    }
+    switch (bm->storage) {
+      case NC_CHUNKED:
+        printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "Storage", dist3 , "chunked");
+        break;
+      case NC_CONTIGUOUS:
+        printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "Storage", dist3 , "contiguous");
+        break;
+    }
+
+    if (bm->is_unlimited) {
+      printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "File length", dist3 , "unlimited");
+    }
+    else {
+      printf("%-*s %-*s %*s\n"  , dist1 , id , dist2 , "File length", dist3 , "fixed");
+    }
 
 
-				// Fill table
-				char buffer[100];
-				size_t pos = 0;
-				table_write_entry(&table, NROWS, NCOLS, pos++, "name", "type", "quantity", "unit", "value");
-				table_write_entry(&table, NROWS, NCOLS, pos++, "processor", "text", "label", "", bm->processor);
-				snprintf(buffer, 100, "%d", bm->nranks);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "nranks", "int", "", "", buffer);
-				snprintf(buffer, 100, "%d", bm->rank);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "rank", "int", "", "", buffer);
-				snprintf(buffer, 100, "%.10f", bm->duration.io);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "time_io", "float", "time", "secs", buffer);
-				snprintf(buffer, 100, "%.10f", bm->duration.open);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "time_open", "float", "time", "secs", buffer);
-				snprintf(buffer, 100, "%.10f", bm->duration.close);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "time_close", "float", "time", "secs", buffer);
-				snprintf(buffer, 100, "%.zu", dsize);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "data_size", "int", "size", "bytes", buffer);
-				snprintf(buffer, 100, "%.zu", bsize);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "block_size", "int", "size", "bytes", buffer);
-				snprintf(buffer, 100, "%.zu", csize);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "chunk_size", "int", "size", "bytes", buffer);
-				size_t msbufsize = 20;
-				char* msbuf = malloc(sizeof(*msbuf) * msbufsize);
-				msbuf[0] = '\0';
-				for (size_t i = 0; i < bm->mssize; ++i) {
-					snprintf(buffer, 100, "%.10f;", time_to_double(bm->ms[i].stop) - time_to_double(bm->ms[i].start));
-					append_string(&msbuf, &msbufsize, buffer);
-				}
-				msbuf[strlen(msbuf) - 1] = '\0'; // Delete the last separator
+		DEBUG_MESSAGE("REPORT_END\n");
 
-				table_write_entry(&table, NROWS, NCOLS, pos++, "time_per_block", "text", "time", "secs", msbuf);
-				table_write_entry(&table, NROWS, NCOLS, pos++, "io_type", "text", "", "", io_mode_str);
-				assert(pos == NCOLS);
-
-				// Make Report
-				size_t outbuf_size = 100;
-				char* outbuf = (char*) malloc(sizeof(char*) * outbuf_size);
-				outbuf[0] = '\0';
-				// Print report
-				for (int row = 0; row < NROWS; ++row) {
-					snprintf(buffer, 100, "benchmark:%d:%s ", bm->rank, table[0][row]);
-					append_string(&outbuf, &outbuf_size, buffer);
-					for (int col = 1; col < NCOLS - 1; ++col) {
-						append_string(&outbuf, &outbuf_size, table[col][row]);
-						append_string(&outbuf, &outbuf_size, ":");
-					}
-					append_string(&outbuf, &outbuf_size, table[NCOLS - 1][row]);
-					snprintf(buffer, 100, "\n");
-					append_string(&outbuf, &outbuf_size, buffer);
-				}
-			
-				// Send/Receive Report
-				size_t* report_size = (size_t*) malloc(nranks * sizeof(*report_size));
-				report_size[0] = outbuf_size;
-
-				// NEW 
-//				benchmark_t** benchmarks = NULL;
-//				if (0 == rank){
-//					benchmarks= (benchmark_t**)malloc(sizeof(benchmark_t*) * nranks);
-//					for (int i = 1; i < nranks; ++i) {
-//						benchmarks[i] = (benchmark_t*) malloc(nranks * sizeof(*benchmarks));
-//					}
-//				}
-//
-//				benchmarks[0] = report->bm;
-//
-//				if (0 == rank){
-//					for(int i = 1; i < nranks; ++i){
-//						benchmark_send(benchmarks[i]);
-//					}
-//				}
-//				else {
-//					benchmark_send(benchmarks[0]);
-//				}
-				// END: NEW
-
-				
-				if (0 == rank){
-					for(int i = 1; i < nranks; ++i){
-						MPI_Recv(&report_size[i], 1, MPI_UNSIGNED_LONG_LONG, i, 4710, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-					}
-				}
-				else {
-					MPI_Send(&report_size[0], 1, MPI_UNSIGNED_LONG_LONG, 0, 4710, MPI_COMM_WORLD);
-				}
-
-				char** report = NULL;
-				if (0 == rank){
-					report = (char**)malloc(sizeof(char*) * nranks);
-					for (int i = 1; i < nranks; ++i) {
-						report[i] = (char*)malloc(sizeof(char) * report_size[i]);
-					}
-				}
-
-				if (0 == rank){
-					report[0] = outbuf;
-					printf("%s\n", report[0]);
-					for(int i = 1; i < nranks; i++){
-						MPI_Recv(report[i], report_size[i], MPI_CHAR, i, 4712, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-						printf("%s\n", report[i]);
-					}
-				}
-				else {
-					MPI_Send(outbuf, outbuf_size, MPI_CHAR, 0, 4712, MPI_COMM_WORLD);
-				}
-
-				// Clean up
-				table_destroy(&table, NROWS, NCOLS);
-				free(msbuf);
-				free(outbuf);
-				free(report_size);
-//				if (0 == rank) {
-//					for (int i = 1; i < nranks; ++i) {
-//						free(benchmarks[i]);
-//					}
-//					free(benchmarks);
-//				}
-				if (0 == rank) {
-					for (int i = 1; i < nranks; ++i) {
-						free(report[i]);
-					}
-					free(report);
-				}
-			}
-			break;
 	}
 }

@@ -66,15 +66,15 @@ void benchmark_init(benchmark_t* bm) {
 	int len = 0;
 	char processor[80];
 	MPI_Get_processor_name(processor, &len);
-	bm->processor = (char*)malloc(sizeof(char*) * len + 1);
+	bm->processor = (char*)malloc(sizeof(*bm->processor) * len + 1);
 	strcpy(bm->processor, processor);
-	bm->testfn = NULL;
-	bm->block = NULL;
+	bm->testfn = malloc(0);
+	bm->block = malloc(0);
   bm->duration.open = -1;
   bm->duration.io = -1;
   bm->duration.close = -1;
   bm->mssize = 0;
-  bm->ms = NULL;
+  bm->ms = malloc(0);
 	bm->ndims = 0;
 }
 
@@ -150,44 +150,20 @@ void benchmark_setup(
 
 	// Testfile
 	bm->io_mode = io_mode;
-	if (bm->testfn != NULL) {
-		free(bm->testfn);
-		bm->testfn = NULL;
-	}
-	bm->testfn = (char*)malloc(sizeof(char*) * strlen(testfn) + 1);
+	bm->testfn = (char*)realloc(bm->testfn, sizeof(char*) * strlen(testfn) + 1);
 	strcpy(bm->testfn, testfn);
 
   // Memory allocation for measurements
-  if (bm->ms != NULL) {
-    free(bm->ms);
-    bm->ms = NULL;
-  }
   bm->mssize = bm->dgeom[DT] / bm->bgeom[DT];
-	bm->ms = (measurement_t*)malloc(sizeof(*bm->ms) * bm->mssize);
+	bm->ms = (measurement_t*)realloc(bm->ms, sizeof(*bm->ms) * bm->mssize);
 
   // Memory allocation and initialization of block
-	if (bm->block != NULL) {
-		free(bm->block);
-		bm->block = NULL;
-	}
-
-//	typedef DATATYPE (*block_t)[bm->bgeom[DX]][bm->bgeom[DY]][bm->bgeom[DZ]];
-//	block_t block = (block_t) malloc(bm->bgeom[DT] * sizeof(*block));
-//	bm->block_size = bm->bgeom[DT] * bm->bgeom[DX] * bm->bgeom[DY] * bm->bgeom[DZ] * sizeof(*block);
-//	bm->block = (DATATYPE*) block;
-
 	bm->block_size = bm->bgeom[DT] * bm->bgeom[DX] * bm->bgeom[DY] * bm->bgeom[DZ] * sizeof(DATATYPE);
-	bm->block = (DATATYPE*) malloc(bm->block_size);
+	bm->block = (DATATYPE*) realloc(bm->block, bm->block_size);
 	if(bm->block == NULL){
 		DEBUG_MESSAGE("Could not allocate> %lu\n", bm->block_size);
 		exit(1);
 	}
-
-//	const size_t nelem = bm->bgeom[DT] * bm->bgeom[DX] * bm->bgeom[DY] * bm->bgeom[DZ];
-//	for (size_t i = 0; i < nelem; ++i) {
-//		bm->block[i] = i;
-//	}
-
 
 	// INIT BLOCK
 	typedef DATATYPE (*block_t)[bm->bgeom[DX]][bm->bgeom[DY]][bm->bgeom[DZ]];
@@ -299,8 +275,7 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 		}
 
 		bm->ms[i].time_offset = to;
-		bm->ms[i].start = start_io_slice;
-		bm->ms[i].stop  = stop_io_slice;
+		bm->ms[i].duration = time_to_double(stop_io_slice) - time_to_double(start_io_slice);
 		++i;
 	}
 	MPI_Barrier(MPI_COMM_WORLD);

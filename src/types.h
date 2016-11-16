@@ -46,10 +46,9 @@ typedef struct time_layout_t {
 	size_t range;
 } time_layout_t;
 
-typedef struct {
+typedef struct measurement_t {
 	size_t time_offset;
-	timespec_t start;
-	timespec_t stop;
+	double duration;
 } measurement_t;
 
 

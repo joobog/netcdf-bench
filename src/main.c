@@ -132,18 +132,18 @@ int main(int argc, char ** argv){
 	char * dg = NULL, * bg  = NULL, *cg = NULL, *iot = "ind", *xf = "human";
 
 	option_help options [] = {
-		{'n' , "nn"             , "Number of nodes"                         , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.procs.nn}     ,
-		{'p' , "ppn"            , "Number of processes"                     , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.procs.ppn}    ,
-		{'d' , "data-geometry"  , "Data geometry (t:x:y:z)"                 , OPTION_OPTIONAL_ARGUMENT , 's' , & dg}                ,
-		{'b' , "block-geometry" , "Block geometry (t:x:y:z)"                , OPTION_OPTIONAL_ARGUMENT , 's' , & bg}                ,
-		{'c' , "chunk-geometry" , "Chunk geometry (t:x:y:z|auto)"           , OPTION_OPTIONAL_ARGUMENT , 's' , & cg}                ,
-		{'r' , "read"           , "Enable read benchmark"                   , OPTION_FLAG              , 'd' , & args.read_test}    ,
-		{'w' , "write"          , "Enable write benchmark"                  , OPTION_FLAG              , 'd' , & args.write_test}   ,
-		{'t' , "io-type"        , "Independent / Collective I/O (ind|coll)" , OPTION_OPTIONAL_ARGUMENT , 's' , & iot}               ,
-		{'u' , "unlimited"      , "Enable unlimited time dimension"         , OPTION_FLAG              , 'd' , & args.is_unlimited} ,
-		{'f' , "testfile"       , "Filename of the testfile"                , OPTION_OPTIONAL_ARGUMENT , 's' , & args.testfn}       ,
-		{'x' , "output-format"  , "Output-Format (parser|human)"            , OPTION_OPTIONAL_ARGUMENT , 's' , & xf}                ,
-		{0 , 	 "verify"  				, "Verify that the data read is correct (requires -r)", OPTION_FLAG ,						   'd' , & args.verify}                ,
+		{'n' , "nn"             , "Number of nodes"                                    , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.procs.nn}     , 
+		{'p' , "ppn"            , "Number of processes"                                , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.procs.ppn}    , 
+		{'d' , "data-geometry"  , "Data geometry (t:x:y:z)"                            , OPTION_OPTIONAL_ARGUMENT , 's' , & dg}                , 
+		{'b' , "block-geometry" , "Block geometry (t:x:y:z)"                           , OPTION_OPTIONAL_ARGUMENT , 's' , & bg}                , 
+		{'c' , "chunk-geometry" , "Chunk geometry (t:x:y:z|auto)"                      , OPTION_OPTIONAL_ARGUMENT , 's' , & cg}                , 
+		{'r' , "read"           , "Enable read benchmark"                              , OPTION_FLAG              , 'd' , & args.read_test}    , 
+		{'w' , "write"          , "Enable write benchmark"                             , OPTION_FLAG              , 'd' , & args.write_test}   , 
+		{'t' , "io-type"        , "Independent / Collective I/O (ind|coll)"            , OPTION_OPTIONAL_ARGUMENT , 's' , & iot}               , 
+		{'u' , "unlimited"      , "Enable unlimited time dimension"                    , OPTION_FLAG              , 'd' , & args.is_unlimited} , 
+		{'f' , "testfile"       , "Filename of the testfile"                           , OPTION_OPTIONAL_ARGUMENT , 's' , & args.testfn}       , 
+		{'x' , "output-format"  , "Output-Format (parser|human)"                       , OPTION_OPTIONAL_ARGUMENT , 's' , & xf}                , 
+		{0   , "verify"         , "Verify that the data read is correct (requires -r)" , OPTION_FLAG              , 'd' , & args.verify}       , 
 	  LAST_OPTION
 	  };
 	parseOptions(argc, argv, options);
@@ -292,7 +292,7 @@ int main(int argc, char ** argv){
 		report_setup(&report, &wbm);
 //		report_print(&report, args.report_type);
 		report_print(&report, REPORT_HUMAN);
-		report_print(&report, REPORT_PARSER);
+//		report_print(&report, REPORT_PARSER);
 		report_destroy(&report);
 	}
 	if (args.read_test) {
@@ -304,7 +304,7 @@ int main(int argc, char ** argv){
 		report_setup(&report, &rbm);
 //		report_print(&report, args.report_type);
 		report_print(&report, REPORT_HUMAN);
-		report_print(&report, REPORT_PARSER);
+//		report_print(&report, REPORT_PARSER);
 		report_destroy(&report);
 		if (args.verify){
 			if (ret) {

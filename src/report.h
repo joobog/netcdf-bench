@@ -30,6 +30,14 @@
 typedef char* (*table_t)[NROWS];
 
 typedef enum report_type_t {REPORT_PARSER, REPORT_HUMAN} report_type_t;
+typedef double (*get_bm_value_t)(const benchmark_t* bms);
+
+typedef struct mam_t {
+	double min;
+	double avg;
+	double max;
+} mam_t;
+
 
 typedef struct report_t {
 	benchmark_t* bm;
