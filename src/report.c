@@ -356,8 +356,8 @@ void report_print(const report_t* report, const report_type_t type) {
 		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "Open time"                        , dist3 , open_stats.min      , dist3 , open_stats.avg      , dist3 , open_stats.max      , dist4 , "secs");
 		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "I/O time"                         , dist3 , io_stats.min        , dist3 , io_stats.avg        , dist3 , io_stats.max        , dist4 , "secs");
 		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "Close time"                       , dist3 , close_stats.min     , dist3 , close_stats.avg     , dist3 , close_stats.max     , dist4 , "secs");
-		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "I/O Performance (w/o open/close)" , dist3 , perf_pure_stats.min , dist3 , perf_pure_stats.avg , dist3 , perf_pure_stats.max , dist4 , "MB/s");
-		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "I/O Performance"                  , dist3 , perf_stats.min      , dist3 , perf_stats.avg      , dist3 , perf_stats.max      , dist4 , "MB/s");
+		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "I/O Performance (w/o open/close)" , dist3 , perf_pure_stats.min , dist3 , perf_pure_stats.avg , dist3 , perf_pure_stats.max , dist4 , "MiB/s");
+		printf("%-*s %-*s %*.10f %*.10f %*.10f %-*s\n" , dist1 , id , dist2 , "I/O Performance"                  , dist3 , perf_stats.min      , dist3 , perf_stats.avg      , dist3 , perf_stats.max      , dist4 , "MiB/s");
 
 		DEBUG_MESSAGE("REPORT_END\n");
 	}
