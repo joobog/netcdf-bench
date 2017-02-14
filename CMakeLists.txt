@@ -14,6 +14,7 @@ set (CMAKE_C_FLAGS_DEBUG   "-O0 -g3 -DDEBUG")
 set (CMAKE_C_FLAGS_RELEASE "-O3")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 
 add_definitions("-DDATATYPE=int")
 add_definitions("-DNC_DATATYPE=NC_INT")
