@@ -15,7 +15,7 @@ The data is read/written in timesteps. Default is one timestep per iteration of 
 
 Furthermore, the data is partitioned equally between the processes, i.e. each process handles x/nn, y/ppn, and the complete z-axis. Consequentially, each process writes the data in blocks `(1:1/px:1/py:z)` of double values to the shared file. To be more precise, `px` and `py` satisfy the following condition: `px · py = np = nn · ppn`, where `np` is the number of processes, `nn` is the number of nodes and, `ppn` is the number of processes per node.
 
-# Parameters
+### Parameters
 NetCDF-Bench is able to run without any parameters. This facilitates the first step to the beginners. For the advanced usage the default configuration can be changed.
 
 ```
