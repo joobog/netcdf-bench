@@ -12,6 +12,8 @@ add_executable(benchtool
 target_link_libraries(benchtool 
 	${MPI_LIBRARIES}
 	${NETCDF_LIBRARIES}
+	rt
+	m
 	)
 
 if(MPI_COMPILE_FLAGS)
