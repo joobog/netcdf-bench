@@ -21,9 +21,10 @@ add_definitions("-DNC_DATATYPE=NC_INT")
 find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH})
 
-find_package(NetCDF REQUIRED)
+#find_package(NetCDF REQUIRED)
 
-find_package(NetCDF REQUIRED)
+find_package(PkgConfig)
+pkg_search_module (NetCDF netcdf)
 
 enable_testing()
 
