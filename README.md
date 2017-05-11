@@ -5,18 +5,30 @@ NetCDF Performance Benchmark Tool (NetCDF-Bench) was developed to measure NetCDF
 
 NetCDF-Bench supports independent I/O, collective I/O and chunked I/O modes. If necessary, it can pre-fill the variables with some value. 
 
-## Usage
-### Domain decomposition
+## Domain decomposition
 NetCDF-Bench supports various access patterns on a 4D dataset (one time dimension and three data dimensions). The short notation of the geometry is `(t:x:y:z)`, e.g., `(10:1000:1000:500)`.
 
-The datasize must be a multiple of the blocksize. This restriction exists due the internal working of the benchmark-tool. (Simplified data partitioning.)
+The pictures shows an example of data with geometry `(3:6:4:3)`.
+<center>
+<img src="https://github.com/joobog/netcdf-bench/blob/master/doc/images/data.png" alt="Domain decomposition: 3:6:4:3" width="640">
+</center>
 
-The data is read/written in timesteps. Default is one timestep per iteration of each parallel process.
+### Data size vs. block size
+The data is written in blocks to the shared file. The block size can be customized, but there are some restrictions. Assume, that
+* `t:x:y:z` is the data size
+* `t` is a multiple of some integer value `s`
+* `nn` is the number of nodes
+* `ppn` the number of processes per node
+* `px` and `py` are integer values, that satisfies the condition: `px · py = nn · ppn`
 
-Furthermore, the data is partitioned equally between the processes, i.e. each process handles x/nn, y/ppn, and the complete z-axis. Consequentially, each process writes the data in blocks `(1:1/px:1/py:z)` of double values to the shared file. To be more precise, `px` and `py` satisfy the following condition: `px · py = np = nn · ppn`, where `np` is the number of processes, `nn` is the number of nodes and, `ppn` is the number of processes per node.
+Then `(s:x/px:y/py:z)` is a valid block size. (Default block size is `(1:x/nn:y/ppn:z)`.)
 
-### Parameters
-NetCDF-Bench is able to run without any parameters. This facilitates the first step to the beginners. For the advanced usage the default configuration can be changed.
+Each process allocates `(s:x/px:y/py:z) * type_size` memory space.
+
+The data is read/written in timesteps.
+
+## Usage
+NetCDF-Bench is designed in that way that it can run without any parameters, but for advance usage our tool provides a number of parameters.
 
 ```
 Benchtool (datatype: int) 
