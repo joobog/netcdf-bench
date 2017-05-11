@@ -52,6 +52,29 @@ Optional arguments
 -x, --output-format=human     Output-Format (parser|human)
 ```
 
+## Example output
+NetCDF-Bench aggregates the result of all processes and creates a summary. Here es an example output:
+
+```
+$ mpiexec -n 1 ./benchtool 
+[1494497686.787267] [mlogin103:1936 :0]         sys.c:744  MXM  WARN  Conflicting CPU frequencies detected, using: 2501.00
+Benchtool (datatype: int) 
+Data geometry (t:x:y:z x sizeof(type))     100:100:100:10 x 4 bytes               
+Block geometry (t:x:y:z x sizeof(type))      1:100:100:10 x 4 bytes               
+Datasize                                             40000000 bytes                (40.0 MB)
+Blocksize                                              400000 bytes                (400.0 kB)
+I/O Access                                        independent
+Storage                                            contiguous
+File length                                             fixed
+File value                                                 no
+                                                                               min                  avg                  max                     
+benchmark:write      Open time                                        0.2811507931         0.2811507931         0.2811507931 secs                
+benchmark:write      I/O time                                         0.1901479111         0.1901479111         0.1901479111 secs                
+benchmark:write      Close time                                       0.3576489800         0.3576489800         0.3576489800 secs                
+benchmark:write      I/O Performance (w/o open/close)               200.6173638152       200.6173638152       200.6173638152 MiB/s               
+benchmark:write      I/O Performance                                 46.0185526612        46.0185526612        46.0185526612 MiB/s 
+```
+
 ## On-going work
 We plan to extend the tool with the following features. 
 1. Drop caches - Cached data can influence the results of I/O performance, therefore it must be cleared before benchmark runs. This features must run in user space.
