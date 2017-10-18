@@ -104,7 +104,8 @@ void benchmark_setup(
 		const io_mode_t io_mode,
 		const int par_access,
 		const bool is_unlimited,
-		const int use_fill_value
+		const int use_fill_value,
+		const int compr_level
 		)
 {
 	assert(dgeom[DX] % procs.nn == 0);
@@ -147,6 +148,13 @@ void benchmark_setup(
 			bm->cgeom[i] = cgeom[i];
 		}
 		bm->storage = NC_CHUNKED;
+	}
+
+	if ( 0 > compr_level) {
+		bm->compr_level == 0;
+	}
+	else {
+		bm->compr_level = compr_level;
 	}
 
 	// Testfile
@@ -240,8 +248,16 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 				err = nc_def_var_chunking(ncid, varid, NC_CHUNKED, bm->cgeom); FATAL_NC_ERR;
 			}
 
+			if (0 != bm->compr_level) {
+				// http://www.unidata.ucar.edu/mailing_lists/archives/netcdfgroup/2015/msg00004.html
+				int shuffle = 0;
+				int deflate = bm->compr_level;
+				int deflate_level = bm->compr_level;
+				err = nc_def_var_deflate(ncid, varid, shuffle, deflate, deflate_level); FATAL_NC_ERR;
+			}
+
 			if (! bm->use_fill_value){
-				err = nc_def_var_fill(ncid, varid, 1, & err); FATAL_NC_ERR;
+				err = nc_def_var_fill(ncid, varid, 1, &err); FATAL_NC_ERR;
 			}
 			err = nc_enddef(ncid); NC_ERR;
 			break;

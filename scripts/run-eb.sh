@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/zsh 
 #
 setopt SH_WORD_SPLIT
 
@@ -15,12 +15,20 @@ module load bullxmpi_mlx_mt/bullxmpi_mlx_mt-1.2.8.3
 #module load betke/netcdf/4.4.0
 module load betke/hdf5-vol
 module load betke/netcdf/4.4.1-vol-sqlite
+module load betke/netcdf-bench
+module list
 
+set -x
+export HDF5_PLUGIN_PATH="/work/ku0598/k202107/git/hdf5-sqlite/ext_plugin/shared"
 export TESTFILE="../test/testfile.nc"
 #export TESTFILE="/dev/shm/test/testfile.nc"
 export TESTDIR="$(dirname $TESTFILE)"
+
 #export BENCHTOOL="../install-vol/bin/benchtool-sqlite"
-export BENCHTOOL="../install-vol/bin/benchtool-native"
+export BENCHTOOL="$(which benchtool-sqlite)"
+set +x
+
+
 
 if [ -z ${SLURM_NNODES+x} ]
 then
@@ -29,8 +37,10 @@ then
 	export PPN=1
 else
 	echo "USE SRUN"
-	export NN=$SLURM_NNODES
-	export PPN=$SLURM_NTASKS_PER_NODE
+	#export NN=$SLURM_NNODES
+	#export PPN=$SLURM_NTASKS_PER_NODE
+	export NN=1
+	export PPN=1
 fi
 
 export X="$(($NN*240/$NN))"
@@ -45,6 +55,7 @@ lfs getstripe $TESTDIR
 
 
 export PATH=/opt/mpi/bullxmpi_mlx/1.2.8.3/bin/:$PATH
+
 MPIEXEC=$(which mpiexec)
 SRUN=$(which srun)
 
@@ -57,7 +68,7 @@ then
 	${MPIEXEC} -np $(($NN * $PPN)) ${BENCHTOOL} -n=$NN -p=$PPN -d="$T:$X:$Y:$Z" -c=auto -w -r --testfile=$TESTFILE
 	set +x
 else 
-	#echo "USE SRUN"
+	echo "USE SRUN"
 	set -x
 	${SRUN} --nodes=$NN --ntasks-per-node=$PPN ${BENCHTOOL} -n=$NN -p=$PPN -d="$T:$X:$Y:$Z" -c=auto -w -r --testfile=$TESTFILE
 	set +x
