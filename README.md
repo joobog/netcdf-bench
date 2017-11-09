@@ -3,7 +3,7 @@
 ## Introduction
 NetCDF Performance Benchmark Tool (NetCDF-Bench) was developed to measure NetCDF performance on devices ranging from notebooks to large HPC systems. It mimics the typical I/O behavior of scientific climate applications and captures the performance on each node/process. In the end, it aggregates the data to human readable summary. 
 
-We assume, htat a typical scientific application runs on several nodes and several processes on each node. (To be done ...).
+We assume, that a typical scientific application runs on several nodes and several processes on each node. (To be done ...).
 
 NetCDF-Bench is parallel bechmark. It supports independent I/O, collective I/O and chunked I/O modes. If necessary, it can pre-fill the variables with some value. 
 
