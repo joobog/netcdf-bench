@@ -3,7 +3,9 @@
 ## Introduction
 NetCDF Performance Benchmark Tool (NetCDF-Bench) was developed to measure NetCDF performance on devices ranging from notebooks to large HPC systems. It mimics the typical I/O behavior of scientific climate applications and captures the performance on each node/process. In the end, it aggregates the data to human readable summary. 
 
-NetCDF-Bench supports independent I/O, collective I/O and chunked I/O modes. If necessary, it can pre-fill the variables with some value. 
+We assume, htat a typical scientific application runs on several nodes and several processes on each node. (To be done ...).
+
+NetCDF-Bench is parallel bechmark. It supports independent I/O, collective I/O and chunked I/O modes. If necessary, it can pre-fill the variables with some value. 
 
 ## Domain decomposition
 NetCDF-Bench supports various access patterns on a 4D dataset (one time dimension and three data dimensions). The short notation of the geometry is `(t:x:y:z)`, e.g., `(10:1000:1000:500)`.
@@ -13,7 +15,7 @@ The pictures shows an example of data with geometry `(3:6:4:3)`.
 <img src="https://github.com/joobog/netcdf-bench/blob/master/doc/images/data.png" alt="Domain decomposition: 3:6:4:3" width="640">
 </center>
 
-### Data size vs. block size
+### Data size vs. Block size
 The data is written in blocks to the shared file. The block size can be customized, but there are some restrictions. Assume, that
 * `t:x:y:z` is the data size
 * `t` is a multiple of some integer value `s`
@@ -28,7 +30,7 @@ Each process allocates `(s:x/px:y/py:z) * type_size` memory space.
 The data is read/written in timesteps.
 
 ## Usage
-NetCDF-Bench is designed in that way that it can run without any parameters, but for advance usage our tool provides a number of parameters.
+NetCDF-Bench is designed in that way that it can run without any parameters, but for advanced usage our tool provides a number of parameters.
 
 ```
 Benchtool (datatype: int) 
@@ -53,7 +55,7 @@ Optional arguments
 ```
 
 ## Example output
-NetCDF-Bench aggregates the result of all processes and creates a summary. Here es an example output:
+NetCDF-Bench aggregates the result of all processes and creates a summary. Here is an example output:
 
 ```
 $ mpiexec -n 1 ./benchtool 
@@ -78,5 +80,5 @@ benchmark:write      I/O Performance                                 46.01855266
 ## On-going work
 We plan to extend the tool with the following features. 
 1. Drop caches - Cached data can influence the results of I/O performance, therefore it must be cleared before benchmark runs. This features must run in user space.
-2. Compression - This feature is useful to benchmakr the NetCDF compression, but also for people who are working on new compression methods.
+2. Compression - This feature is useful to benchmark the NetCDF compression, but also for people who are working on new compression methods.
 3. CSV output - Detailed information about the benchmark run for analysis with third party tools.
