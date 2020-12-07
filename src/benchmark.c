@@ -63,11 +63,13 @@ if (status != NC_NOERR) {
 void benchmark_init(benchmark_t* bm) {
 	MPI_Comm_rank(MPI_COMM_WORLD, &bm->rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &bm->nranks);
+
 	int len = 0;
 	char processor[80];
 	MPI_Get_processor_name(processor, &len);
 	bm->processor = (char*)malloc(sizeof(*bm->processor) * len + 1);
 	strcpy(bm->processor, processor);
+
 	bm->testfn = malloc(0);
 	bm->block = malloc(0);
   bm->duration.open = -1;
@@ -105,7 +107,8 @@ void benchmark_setup(
 		const int par_access,
 		const bool is_unlimited,
 		const int use_fill_value,
-		const int compr_level
+		const int compr_level,
+    const int file_per_process
 		)
 {
 	assert(dgeom[DX] % procs.nn == 0);
@@ -113,18 +116,12 @@ void benchmark_setup(
 
 	bm->use_fill_value = use_fill_value;
 	bm->par_access = par_access;
-	switch (bm->par_access) {
-		case NC_COLLECTIVE:
-			bm->is_unlimited = is_unlimited;
-			break;
-		case NC_INDEPENDENT:
-			if (is_unlimited) {
-				FATAL_ERR("Unlimited variables are not supported by independent I/O.\n");
-			}
-			bm->is_unlimited = false;
-			break;
-		default:
-			FATAL_ERR("Bad par par access type.\n");
+  bm->is_unlimited = is_unlimited;
+  bm->file_per_process = file_per_process;
+  bm->com = bm->file_per_process ? MPI_COMM_SELF : MPI_COMM_WORLD;
+
+	if(bm->par_access == NC_INDEPENDENT && ! bm->file_per_process && is_unlimited){
+		FATAL_ERR("Unlimited variables are not supported by independent I/O.\n");
 	}
 
   // processes = number_of_nodes * processes_per_node
@@ -159,8 +156,13 @@ void benchmark_setup(
 
 	// Testfile
 	bm->io_mode = io_mode;
-	bm->testfn = (char*)realloc(bm->testfn, sizeof(char*) * strlen(testfn) + 1);
-	strcpy(bm->testfn, testfn);
+	bm->testfn = (char*)realloc(bm->testfn, strlen(testfn) + 10);
+  if(file_per_process){
+    sprintf(bm->testfn, "%s-%d", testfn, bm->rank);
+  }else{
+    strcpy(bm->testfn, testfn);
+  }
+
 
   // Memory allocation for measurements
   bm->mssize = bm->dgeom[DT] / bm->bgeom[DT];
@@ -219,7 +221,7 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 	switch (bm->io_mode) {
 		case IO_MODE_WRITE:
 			cmode = NC_CLOBBER | NC_MPIIO | NC_NETCDF4;
-			err = nc_create_par(bm->testfn, cmode, MPI_COMM_WORLD, MPI_INFO_NULL, &ncid); FATAL_NC_ERR;
+			err = nc_create_par(bm->testfn, cmode, bm->com, MPI_INFO_NULL, &ncid); FATAL_NC_ERR;
 
 			if (! bm->use_fill_value){
 				int old_fill_mode;
@@ -240,7 +242,9 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 
 			for (size_t i = 1; i < bm->ndims; ++i) {
 				sprintf(dimname, "dim_%zu", i);
-				err = nc_def_dim(ncid, dimname, bm->dgeom[i], &dimids[i]); NC_ERR;
+				err = nc_def_dim(ncid, dimname,
+          bm->file_per_process ? bm->bgeom[i] : bm->dgeom[i],
+          &dimids[i]); NC_ERR;
 			}
 			err = nc_def_var(ncid, "data", NC_DATATYPE, bm->ndims, dimids, &varid); NC_ERR;
 
@@ -262,7 +266,7 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 			err = nc_enddef(ncid); NC_ERR;
 			break;
 		case IO_MODE_READ:
-			err = nc_open_par(bm->testfn, NC_MPIIO, MPI_COMM_WORLD, MPI_INFO_NULL, &ncid); FATAL_NC_ERR;
+			err = nc_open_par(bm->testfn, NC_MPIIO, bm->com, MPI_INFO_NULL, &ncid); FATAL_NC_ERR;
 			err = nc_inq_varid(ncid, "data", &varid); NC_ERR;
 			break;
 		default:
@@ -282,7 +286,10 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 	timespec_t start_io, stop_io;
 	timespec_t start_io_slice, stop_io_slice;
 	int i = 0;
-	size_t start[] = {0, bm->bgeom[DX] * (bm->rank / bm->procs.ppn), bm->bgeom[DY] * (bm->rank % bm->procs.ppn), 0};
+	size_t start[] = {0,
+    bm->file_per_process ? 0 : bm->bgeom[DX] * (bm->rank / bm->procs.ppn),
+    bm->file_per_process ? 0 : bm->bgeom[DY] * (bm->rank % bm->procs.ppn),
+    0};
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	start_timer(&start_io);

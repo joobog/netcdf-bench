@@ -41,7 +41,7 @@ unsigned int to_char(const long long value, const size_t pos) {
   const long long r = value / ((long long) pow(10, pos)); // remove the last positions, e.g. pos=2 and value=2136 -> r=21
   const long long x = r / 10 * 10;                // set last position to zero, e.g. r=21 -> x=20
   const long long res = r - x; // e.g. r-x = 21-20 = 1
-  return res;                                  
+  return res;
 }
 
 char* create_pretty_number_ll(const double value) {
@@ -141,6 +141,7 @@ struct args {
   int read_test;
 	report_type_t report_type;
   int par_access;
+  int file_per_process;
   int is_unlimited;
   int compr_level;
 	int verify;
@@ -217,42 +218,27 @@ int main(int argc, char ** argv){
 
 
 	// Default values
-	struct args args;
-	args.procs.nn = 0;
-	args.procs.ppn = 0;
-	args.dgeom_size = 0;
-	args.dgeom = NULL;
-	args.bgeom_size = 0;
-  args.bgeom = NULL;
-	args.cgeom_size = 0;
-  args.cgeom = NULL;
-  args.testfn = NULL;
-  args.write_test = 0;
-  args.read_test = 0;
+	struct args args = {0};
 	args.report_type = REPORT_HUMAN;
   args.par_access = NC_INDEPENDENT;
-  args.is_unlimited = 0;
-  args.compr_level = 0;
-	args.verify = 0;
-	args.fill_value = 0;
 
 	char * dg = NULL, * bg  = NULL, *cg = NULL, *iot = "ind", *xf = "human";
 
 	option_help options [] = {
-		{'n' , "nn"                , "Number of nodes"                                             , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.procs.nn}     , 
-		{'p' , "ppn"               , "Number of processes"                                         , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.procs.ppn}    , 
-		{'d' , "data-geometry"     , "Data geometry (t:x:y:z)"                                     , OPTION_OPTIONAL_ARGUMENT , 's' , & dg}                , 
-		{'b' , "block-geometry"    , "Block geometry (t:x:y:z)"                                    , OPTION_OPTIONAL_ARGUMENT , 's' , & bg}                , 
-		{'c' , "chunk-geometry"    , "Chunk geometry (t:x:y:z|auto)"                               , OPTION_OPTIONAL_ARGUMENT , 's' , & cg}                , 
-		{'r' , "read"              , "Enable read benchmark"                                       , OPTION_FLAG              , 'd' , & args.read_test}    , 
-		{'w' , "write"             , "Enable write benchmark"                                      , OPTION_FLAG              , 'd' , & args.write_test}   , 
-		{'t' , "io-type"           , "Independent / Collective I/O (ind|coll)"                     , OPTION_OPTIONAL_ARGUMENT , 's' , & iot}               , 
-		{'u' , "unlimited"         , "Enable unlimited time dimension"                             , OPTION_FLAG              , 'd' , & args.is_unlimited} , 
-		{'z' , "compression_level" , "Enables compressif if not zero and set compression level"    , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.compr_level}  , 
-		{'f' , "testfile"          , "Filename of the testfile"                                    , OPTION_OPTIONAL_ARGUMENT , 's' , & args.testfn}       , 
-		{'x' , "output-format"     , "Output-Format (parser|human)"                                , OPTION_OPTIONAL_ARGUMENT , 's' , & xf}                , 
-		{'F' , "use-fill-value"    , "Write a fill value"                                          , OPTION_FLAG              , 'd' , & args.fill_value}   , 
-		{0   , "verify"            , "Verify that the data read is correct (reads the data again)" , OPTION_FLAG              , 'd' , & args.verify}       , 
+		{'n' , "nn"                , "Number of nodes"                                             , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.procs.nn}     ,
+		{'p' , "ppn"               , "Number of processes"                                         , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.procs.ppn}    ,
+		{'d' , "data-geometry"     , "Data geometry (t:x:y:z)"                                     , OPTION_OPTIONAL_ARGUMENT , 's' , & dg}                ,
+		{'b' , "block-geometry"    , "Block geometry (t:x:y:z)"                                    , OPTION_OPTIONAL_ARGUMENT , 's' , & bg}                ,
+		{'c' , "chunk-geometry"    , "Chunk geometry (t:x:y:z|auto)"                               , OPTION_OPTIONAL_ARGUMENT , 's' , & cg}                ,
+		{'r' , "read"              , "Enable read benchmark"                                       , OPTION_FLAG              , 'd' , & args.read_test}    ,
+		{'w' , "write"             , "Enable write benchmark"                                      , OPTION_FLAG              , 'd' , & args.write_test}   ,
+		{'t' , "io-type"           , "Independent / Collective I/O or independent I/O (ind|coll|file-per-process)"                     , OPTION_OPTIONAL_ARGUMENT , 's' , & iot}               ,
+		{'u' , "unlimited"         , "Enable unlimited time dimension"                             , OPTION_FLAG              , 'd' , & args.is_unlimited} ,
+		{'z' , "compression_level" , "Enables compressif if not zero and set compression level"    , OPTION_OPTIONAL_ARGUMENT , 'd' , & args.compr_level}  ,
+		{'f' , "testfile"          , "Filename of the testfile"                                    , OPTION_OPTIONAL_ARGUMENT , 's' , & args.testfn}       ,
+		{'x' , "output-format"     , "Output-Format (parser|human)"                                , OPTION_OPTIONAL_ARGUMENT , 's' , & xf}                ,
+		{'F' , "use-fill-value"    , "Write a fill value"                                          , OPTION_FLAG              , 'd' , & args.fill_value}   ,
+		{0   , "verify"            , "Verify that the data read is correct (reads the data again)" , OPTION_FLAG              , 'd' , & args.verify}       ,
 	  LAST_OPTION
 	  };
 	int rank;
@@ -275,6 +261,10 @@ int main(int argc, char ** argv){
   }
   else if  ((0 == strcmp(iot, "i")) | (0 == strcmp(iot, "ind")) | (0 == strcmp(iot, "independent"))) {
     args.par_access = NC_INDEPENDENT;
+  }
+  else if  ((0 == strcmp(iot, "f")) | (0 == strcmp(iot, "file-per-process")) | (0 == strcmp(iot, "file"))) {
+    args.par_access = NC_INDEPENDENT;
+    args.file_per_process = 1;
   }
   else {
     FATAL_ERR("Unsupported parallel access type %s\n", xf);
@@ -404,7 +394,7 @@ int main(int argc, char ** argv){
 	benchmark_t rbm;
 	benchmark_init(&rbm);
 	if (args.write_test || args.verify) {
-		benchmark_setup(&wbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_WRITE, args.par_access, args.is_unlimited, args.fill_value, args.compr_level);
+		benchmark_setup(&wbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_WRITE, args.par_access, args.is_unlimited, args.fill_value, args.compr_level, args.file_per_process);
 		if(rank == 0){
 			print_header(& wbm);
 			header_printed = 1;
@@ -420,7 +410,7 @@ int main(int argc, char ** argv){
 	}
 	if (args.read_test) {
 		int ret;
-		benchmark_setup(&rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited, 0, args.compr_level);
+		benchmark_setup(&rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited, 0, args.compr_level, args.file_per_process);
 		if(rank == 0 && ! header_printed){
 			print_header(& rbm);
 			header_printed = 1;
@@ -435,7 +425,7 @@ int main(int argc, char ** argv){
 	}else if (args.verify) {
 
 		int ret;
-		benchmark_setup(& rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited, 0, args.compr_level);
+		benchmark_setup(& rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited, 0, args.compr_level, args.file_per_process);
 		if(rank == 0 && ! header_printed){
 			print_header(& rbm);
 			header_printed = 1;

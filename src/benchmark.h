@@ -24,6 +24,7 @@
 #define str_append(x,y) x#y
 
 #include <stdbool.h>
+#include <mpi.h>
 
 #include "types.h"
 #include "constants.h"
@@ -34,6 +35,7 @@ typedef unsigned char byte;
 typedef int (*nc_x_vara_t)(int, int, const size_t*, const size_t*, int*);
 
 typedef struct benchmark_t {
+  MPI_Comm com;
 	char* processor;
 	char* testfn;
 	DATATYPE * block;
@@ -50,6 +52,7 @@ typedef struct benchmark_t {
 	duration_t duration;
 	size_t mssize;
 	int par_access;
+  int file_per_process;
 	int storage;
 	bool is_unlimited;
 	bool use_fill_value;
@@ -69,7 +72,8 @@ void benchmark_setup(
 		const int par_access,
 		const bool is_unlimited,
 		const int use_fill_value,
-		const int compr_level
+		const int compr_level,
+    const int file_per_process
 		);
 int benchmark_run(benchmark_t* benchmark, DATATYPE* compare_block);
 void benchmark_destroy(benchmark_t* benchmark);
