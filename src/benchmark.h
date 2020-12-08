@@ -57,6 +57,7 @@ typedef struct benchmark_t {
 	bool is_unlimited;
 	bool use_fill_value;
 	int compr_level;
+  int read_rank_offsets; // for shifting the processes, expect cyclic partitioning
 } benchmark_t;
 
 void benchmark_init(benchmark_t* benchmark);

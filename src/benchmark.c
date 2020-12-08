@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 #include <time.h>
 
 #include "benchmark.h"
@@ -78,6 +79,7 @@ void benchmark_init(benchmark_t* bm) {
   bm->mssize = 0;
   bm->ms = malloc(0);
 	bm->ndims = 0;
+  bm->read_rank_offsets = 1;
 }
 
 
@@ -156,13 +158,7 @@ void benchmark_setup(
 
 	// Testfile
 	bm->io_mode = io_mode;
-	bm->testfn = (char*)realloc(bm->testfn, strlen(testfn) + 10);
-  if(file_per_process){
-    sprintf(bm->testfn, "%s-%d", testfn, bm->rank);
-  }else{
-    strcpy(bm->testfn, testfn);
-  }
-
+	bm->testfn = strdup(testfn);
 
   // Memory allocation for measurements
   bm->mssize = bm->dgeom[DT] / bm->bgeom[DT];
@@ -217,11 +213,22 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 	MPI_Barrier(MPI_COMM_WORLD);
 	start_timer(&start_open);
 
+  char testfn[PATH_MAX];
+  int myShiftedRank = bm->rank;
+  if(bm->io_mode == IO_MODE_READ){
+    myShiftedRank = (myShiftedRank + 1) % bm->nranks;
+  }
+  if(bm->file_per_process){
+    sprintf(testfn, "%s-%d", bm->testfn, myShiftedRank);
+  }else{
+    sprintf(testfn, "%s", bm->testfn);
+  }
 
-	switch (bm->io_mode) {
-		case IO_MODE_WRITE:
+  printf("%d pretents to be %d on file %s\n", bm->rank, myShiftedRank, testfn);
+
+	if(bm->io_mode == IO_MODE_WRITE){
 			cmode = NC_CLOBBER | NC_MPIIO | NC_NETCDF4;
-			err = nc_create_par(bm->testfn, cmode, bm->com, MPI_INFO_NULL, &ncid); FATAL_NC_ERR;
+			err = nc_create_par(testfn, cmode, bm->com, MPI_INFO_NULL, &ncid); FATAL_NC_ERR;
 
 			if (! bm->use_fill_value){
 				int old_fill_mode;
@@ -264,14 +271,9 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 				err = nc_def_var_fill(ncid, varid, 1, &err); FATAL_NC_ERR;
 			}
 			err = nc_enddef(ncid); NC_ERR;
-			break;
-		case IO_MODE_READ:
-			err = nc_open_par(bm->testfn, NC_MPIIO, bm->com, MPI_INFO_NULL, &ncid); FATAL_NC_ERR;
+	}else{
+			err = nc_open_par(testfn, NC_MPIIO, bm->com, MPI_INFO_NULL, &ncid); FATAL_NC_ERR;
 			err = nc_inq_varid(ncid, "data", &varid); NC_ERR;
-			break;
-		default:
-			perror("No io_mode (write/read) is selected");
-			exit(-1);
 	}
 
 	err = nc_var_par_access(ncid, varid, bm->par_access); NC_ERR;
@@ -287,8 +289,8 @@ int benchmark_run(benchmark_t* bm, DATATYPE* compare_block){
 	timespec_t start_io_slice, stop_io_slice;
 	int i = 0;
 	size_t start[] = {0,
-    bm->file_per_process ? 0 : bm->bgeom[DX] * (bm->rank / bm->procs.ppn),
-    bm->file_per_process ? 0 : bm->bgeom[DY] * (bm->rank % bm->procs.ppn),
+    bm->file_per_process ? 0 : bm->bgeom[DX] * (myShiftedRank / bm->procs.ppn),
+    bm->file_per_process ? 0 : bm->bgeom[DY] * (myShiftedRank % bm->procs.ppn),
     0};
 
 	MPI_Barrier(MPI_COMM_WORLD);
