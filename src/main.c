@@ -423,13 +423,13 @@ int main(int argc, char ** argv){
 		report_destroy(&report);
 
 	}else if (args.verify) {
-
 		int ret;
 		benchmark_setup(& rbm, args.procs, NDIMS, args.dgeom, args.bgeom, args.cgeom, args.testfn, IO_MODE_READ, args.par_access, args.is_unlimited, 0, args.compr_level, args.file_per_process);
 		if(rank == 0 && ! header_printed){
 			print_header(& rbm);
 			header_printed = 1;
 		}
+    memcpy(wbm.block, rbm.block, rbm.block_size);
 		ret = benchmark_run(& rbm, wbm.block);
 		if (args.verify){
 			if (ret) {

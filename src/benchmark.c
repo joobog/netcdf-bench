@@ -70,7 +70,6 @@ void benchmark_init(benchmark_t* bm) {
 	MPI_Get_processor_name(processor, &len);
 	bm->processor = (char*)malloc(sizeof(*bm->processor) * len + 1);
 	strcpy(bm->processor, processor);
-
 	bm->testfn = malloc(0);
 	bm->block = malloc(0);
   bm->duration.open = -1;
@@ -172,6 +171,11 @@ void benchmark_setup(
 		exit(1);
 	}
 
+  int actual_rank = bm->rank;
+  if(io_mode == IO_MODE_READ){
+    actual_rank = (actual_rank + 1) % bm->nranks;
+  }
+  
 	// INIT BLOCK
 	typedef DATATYPE (*block_t)[bm->bgeom[DX]][bm->bgeom[DY]][bm->bgeom[DZ]];
 	block_t block = (block_t) bm->block;
@@ -179,7 +183,7 @@ void benchmark_setup(
 		for(size_t x = 0; x < bm->bgeom[DX]; ++x) {
 			for(size_t y = 0; y < bm->bgeom[DY]; ++y) {
 				for(size_t z = 0; z < bm->bgeom[DZ]; ++z) {
-					block[t][x][y][z] = (DATATYPE)(100 * t + bm->rank + x + y * 10 + 1);
+					block[t][x][y][z] = (DATATYPE)(100 * t + actual_rank + x + y * 10 + 1);
 				}
 			}
 		}
