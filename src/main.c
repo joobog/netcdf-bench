@@ -415,6 +415,9 @@ int main(int argc, char ** argv){
 			print_header(& rbm);
 			header_printed = 1;
 		}
+    if(args.verify){
+      memcpy(wbm.block, rbm.block, rbm.block_size);
+    }
 		ret = benchmark_run(&rbm, args.verify ? wbm.block : NULL );
 		report_t report;
 		report_init(&report);
